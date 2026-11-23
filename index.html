@@ -1,0 +1,1189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Crypto Buy Levels</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f1218">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Buy Levels">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column dashboard — verdict first, then ladder, chart, grouped signals, planner. Dark-first, ledger-like. */
+:root {
+  --bg: #0f1218; --panel: #161b24; --line: #262d3a; --fg: #e8ebf1; --muted: #8c95a6;
+  --accent: #f2a33a; --accent-soft: rgba(242,163,58,.14);
+  --z5: #2fbf71; --z4: #5fcf8a; --z3: #49b6c4; --z2: #9aa3b5; --z1: #e5a53b; --z0: #e5604f;
+  --ma200d: #6aa8ff; --ma200w: #2fbf71; --ma2y: #c08cff; --pl: #e3cf6b; --bmsb: #ff8fb1;
+  --display: "Sora", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #f4f5f8; --panel: #ffffff; --line: #dfe3ea; --fg: #151a23; --muted: #5d6677;
+  --accent: #c76f00; --accent-soft: rgba(199,111,0,.10);
+  --z5: #1a8f52; --z4: #2f9e63; --z3: #1d8796; --z2: #6b7487; --z1: #b97a10; --z0: #c53d2c;
+  --ma200d: #2f6fd6; --ma200w: #1a8f52; --ma2y: #8a4fd1; --pl: #9a7d00; --bmsb: #c2417a; color-scheme: light } }
+:root[data-theme="light"] {
+  --bg: #f4f5f8; --panel: #ffffff; --line: #dfe3ea; --fg: #151a23; --muted: #5d6677;
+  --accent: #c76f00; --accent-soft: rgba(199,111,0,.10);
+  --z5: #1a8f52; --z4: #2f9e63; --z3: #1d8796; --z2: #6b7487; --z1: #b97a10; --z0: #c53d2c;
+  --ma200d: #2f6fd6; --ma200w: #1a8f52; --ma2y: #8a4fd1; --pl: #9a7d00; --bmsb: #c2417a; color-scheme: light }
+
+* { box-sizing: border-box }
+html, body { margin: 0 }
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-top: calc(24px + env(safe-area-inset-top, 0px)); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)) }
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 28px }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0 }
+h1 { font-size: 1.35rem; letter-spacing: -.01em }
+h2 { font-size: 1.05rem; font-weight: 600 }
+h3 { font-size: .95rem; font-weight: 600 }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums }
+.muted { color: var(--muted) }
+.label { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted) }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px }
+.sec-head p { margin: 0; font-size: .85rem; color: var(--muted); max-width: 60ch }
+
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap }
+.brand { display: flex; align-items: center; gap: 10px }
+.brand .glyph { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); color: #111; display: grid; place-items: center; font: 700 1rem var(--display) }
+.controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+select, input, button { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px }
+input { font-family: var(--mono); width: 100%; min-width: 0 }
+button { cursor: pointer }
+button:hover { border-color: var(--accent) }
+button:disabled { opacity: .7; cursor: progress }
+button.primary { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 600 }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.status { font-size: .8rem; color: var(--muted) }
+.status .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); margin-right: 6px; vertical-align: 1px }
+.status.live .dot { background: var(--z5) }
+.status.err .dot { background: var(--z0) }
+.banner { border: 1px solid var(--z0); color: var(--fg); background: color-mix(in srgb, var(--z0) 12%, transparent); border-radius: 10px; padding: 12px 14px; font-size: .9rem }
+.banner.alert { border-color: var(--accent); background: var(--accent-soft) }
+.banner.warn { border-color: var(--z1); background: color-mix(in srgb, var(--z1) 12%, transparent) }
+
+/* Verdict */
+.verdict { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px }
+@media (max-width: 760px) { .verdict { grid-template-columns: 1fr } }
+.price-big { font: 600 clamp(2rem, 6vw, 3rem)/1.1 var(--mono); letter-spacing: -.02em }
+.chg { font-family: var(--mono); font-size: .95rem }
+.up { color: var(--z5) } .down { color: var(--z0) }
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px }
+.facts div { min-width: 0 }
+.facts .v { font: 500 1rem var(--mono) }
+.zone-name { font: 700 1.5rem/1.2 var(--display); margin: 4px 0 }
+.gauge { position: relative; height: 12px; border-radius: 6px; margin: 14px 0 6px;
+  background: linear-gradient(90deg, var(--z0), var(--z1) 25%, var(--z2) 42%, var(--z3) 57%, var(--z4) 72%, var(--z5)) }
+.gauge .pin { position: absolute; top: -5px; width: 4px; height: 22px; border-radius: 2px; background: var(--fg); box-shadow: 0 0 0 2px var(--panel); transform: translateX(-50%); transition: left .6s }
+.gauge-scale { display: flex; justify-content: space-between; font-size: .7rem; color: var(--muted) }
+.groups { display: grid; gap: 6px; margin-top: 14px }
+.grp { display: grid; grid-template-columns: 7.5rem 1fr 2.2rem; gap: 10px; align-items: center; font-size: .8rem }
+.grp .num { text-align: right }
+.dca { display: flex; gap: 12px; align-items: center; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line) }
+.dca .mult { font: 700 1.6rem var(--mono); color: var(--zc, var(--accent)) }
+
+/* Tables */
+.table-scroll { overflow-x: auto }
+table { width: 100%; border-collapse: collapse; font-size: .9rem }
+th { text-align: left; font-weight: 500; font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap }
+td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top }
+td.r, th.r { text-align: right }
+tr.now td { background: var(--accent-soft); font-weight: 600 }
+tr.passed td { color: var(--muted) }
+.tag { display: inline-block; font-size: .72rem; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: 0 }
+.desc { font-size: .8rem; color: var(--muted) }
+
+/* Chart */
+.chart-box { position: relative; height: 400px }
+@media (max-width: 600px) { .chart-box { height: 290px } }
+canvas { width: 100%; height: 100%; display: block }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); margin-top: 10px }
+.readout { position: absolute; top: 6px; left: 10px; right: 80px; font: .75rem var(--mono); color: var(--muted); pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+
+/* Signals */
+.sig-group { display: grid; gap: 10px }
+.sig-group + .sig-group { margin-top: 22px }
+.sig-group .gh { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap }
+.signals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px }
+@media (max-width: 860px) { .signals { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+@media (max-width: 520px) { .signals { grid-template-columns: 1fr } }
+.sig { display: grid; gap: 6px; align-content: start; min-width: 0 }
+.sig.na { opacity: .65 }
+.sig .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px }
+.sig .val { font: 600 1.3rem var(--mono); overflow-wrap: anywhere }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden }
+.bar i { display: block; height: 100%; border-radius: 3px }
+.sig p { margin: 0; font-size: .82rem }
+.sig .read { color: var(--fg) }
+.sig .what { color: var(--muted); font-size: .78rem; padding-top: 6px; border-top: 1px solid var(--line) }
+
+/* Planner */
+.two { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px }
+@media (max-width: 860px) { .two { grid-template-columns: 1fr } }
+.field { display: grid; gap: 4px }
+.row { display: flex; gap: 10px; align-items: end; flex-wrap: wrap }
+.row .field { flex: 1 1 140px; min-width: 0 }
+.big-sats { font: 600 1.6rem var(--mono); color: var(--accent) }
+.alerts-list { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px }
+.alerts-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 7px; font-family: var(--mono) }
+.alerts-list li.hit { border-color: var(--accent); background: var(--accent-soft) }
+.alerts-list button { padding: 2px 8px; font-size: .8rem }
+footer { font-size: .8rem; color: var(--muted); display: grid; gap: 8px }
+footer p { margin: 0; max-width: 90ch }
+.src-list { display: flex; flex-wrap: wrap; gap: 6px 16px; list-style: none; padding: 0; margin: 0 }
+.src-list .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; background: var(--muted) }
+.src-list .ok .dot { background: var(--z5) } .src-list .bad .dot { background: var(--z0) }
+@media (prefers-reduced-motion: reduce) { .gauge .pin { transition: none } }
+/* --- multi-coin additions --- */
+[hidden] { display: none !important }
+.wrap { grid-template-columns: minmax(0, 1fr) }
+.verdict > *, .two > *, .ov-top > *, .cards > * { min-width: 0 }
+@media (max-width: 760px) { .verdict { grid-template-columns: minmax(0, 1fr) } }
+@media (max-width: 860px) { .two, .ov-top { grid-template-columns: minmax(0, 1fr) } }
+@media (max-width: 900px) { .cards { grid-template-columns: minmax(0, 1fr) } }
+@media (max-width: 520px) { .facts { grid-template-columns: 1fr 1fr } .grp { grid-template-columns: 6rem 1fr 2.2rem } }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap }
+.tabs a { text-decoration: none; color: var(--muted); padding: 7px 14px; border-radius: 7px; border: 1px solid transparent; font-weight: 500 }
+.tabs a:hover { color: var(--fg); border-color: var(--line) }
+.tabs a.on { color: var(--fg); background: var(--panel); border-color: var(--line) }
+.ov-top { display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px }
+@media (max-width: 860px) { .ov-top { grid-template-columns: 1fr } }
+.ov-lines { display: grid; gap: 6px; margin-top: 12px; font-size: .9rem }
+.ov-lines div { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px }
+@media (max-width: 900px) { .cards { grid-template-columns: 1fr } }
+a.coin { text-decoration: none; color: inherit; display: grid; gap: 10px; align-content: start; transition: border-color .15s }
+a.coin:hover { border-color: var(--accent) }
+.coin .hd { display: flex; align-items: center; justify-content: space-between; gap: 8px }
+.coin .nm { display: flex; align-items: center; gap: 8px; font: 600 1rem var(--display) }
+.coin .g { width: 26px; height: 26px; border-radius: 7px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font: 700 .9rem var(--display) }
+.coin .px { font: 600 1.6rem/1.1 var(--mono) }
+.coin .sc { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
+.coin .sc b { font: 700 2rem/1 var(--mono) }
+.coin .zn { font: 600 1rem var(--display) }
+.coin canvas { height: 56px }
+.coin .more { font-size: .82rem; color: var(--accent) }
+.coin .conf { font-size: .75rem; color: var(--muted) }
+.cmp td:first-child, .cmp th:first-child { color: var(--muted) }
+.cmp td { vertical-align: middle }
+.back { font-size: .85rem; color: var(--muted); text-decoration: none }
+.back:hover { color: var(--fg) }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><div class="glyph">◈</div><div><h1>Crypto Buy Levels</h1><div id="status" class="status"><span class="dot"></span>Loading market data…</div></div></div>
+    <nav class="tabs" id="tabs" aria-label="Views">
+      <a href="#overview" data-v="overview">Overview</a><a href="#btc" data-v="BTC">Bitcoin</a><a href="#eth" data-v="ETH">Ethereum</a><a href="#sol" data-v="SOL">Solana</a>
+    </nav>
+    <div class="controls">
+      <label class="label" for="cur">Currency</label>
+      <select id="cur"><option>USD</option><option>EUR</option><option>CHF</option><option>GBP</option></select>
+      <button id="refresh" type="button">Refresh</button>
+      <button id="theme" type="button" title="Toggle light/dark" aria-label="Toggle light or dark theme">◐</button>
+    </div>
+  </header>
+
+  <div id="err" class="banner" hidden></div>
+  <div id="piWarn" class="banner warn" hidden></div>
+  <div id="alertBanner" class="banner alert" hidden></div>
+
+  <!-- ================= OVERVIEW ================= -->
+  <div id="viewOverview" class="wrap" style="max-width:none">
+    <section class="ov-top">
+      <div class="panel">
+        <div class="label">Overall · weighted <span id="ovBase">50 / 25 / 25</span></div>
+        <div class="zone-name" id="ovZone">—</div>
+        <div class="muted" id="ovText" style="font-size:.9rem">&nbsp;</div>
+        <div class="gauge"><div class="pin" id="ovPin" style="left:50%"></div></div>
+        <div class="gauge-scale"><span>Overheated</span><span>Fair</span><span>Deep value</span></div>
+        <div class="ov-lines" id="ovLines"></div>
+      </div>
+      <div class="panel">
+        <div class="sec-head" style="margin-bottom:8px"><h2>This period's buy</h2></div>
+        <div class="field"><label class="label" for="ovAmt">Your regular buy, all coins together (<span class="curLbl">USD</span>)</label><input id="ovAmt" type="number" min="0" step="10" value="200"></div>
+        <div class="table-scroll" style="margin-top:10px">
+          <table><thead><tr><th>Coin</th><th class="r">Base</th><th class="r">Size</th><th class="r">Buy</th><th class="r">You get</th></tr></thead>
+          <tbody id="ovSplit"></tbody><tfoot id="ovSplitFoot"></tfoot></table>
+        </div>
+        <p class="muted" style="font-size:.78rem;margin:8px 0 0">Base split 50% BTC, 25% ETH, 25% SOL. Each share is scaled by that coin's suggested size, so the total changes with the market.</p>
+      </div>
+    </section>
+    <section class="cards" id="ovCards"></section>
+    <section class="panel">
+      <div class="sec-head"><h2>Side by side</h2><p>The same key readings for each coin. Open a coin for its full ladder, chart and signals.</p></div>
+      <div class="table-scroll"><table class="cmp"><thead><tr><th></th><th class="r">Bitcoin</th><th class="r">Ethereum</th><th class="r">Solana</th></tr></thead><tbody id="ovCmp"></tbody></table></div>
+    </section>
+  </div>
+
+  <!-- ================= DETAIL ================= -->
+  <div id="viewDetail" class="wrap" style="max-width:none" hidden>
+  <section class="verdict">
+    <div class="panel">
+      <div class="label"><span id="coinName">Bitcoin</span> spot · <span id="pairLbl">BTC/USD</span></div>
+      <div class="price-big num" id="price">—</div>
+      <div class="chg" id="chg">&nbsp;</div>
+      <div class="facts">
+        <div><div class="label" id="f1Lbl">Sats per 1 USD</div><div class="v" id="satsPerUnit">—</div></div>
+        <div><div class="label">All-time high</div><div class="v" id="ath">—</div></div>
+        <div><div class="label" id="f3Lbl">Halving cycle</div><div class="v" id="cycle">—</div></div>
+      </div>
+    </div>
+    <div class="panel" id="verdictPanel">
+      <div class="label">Buy signal · <span id="compLbl">composite score</span></div>
+      <div class="zone-name" id="zoneName">—</div>
+      <div class="muted" id="zoneText" style="font-size:.9rem">&nbsp;</div>
+      <div class="gauge"><div class="pin" id="pin" style="left:50%"></div></div>
+      <div class="gauge-scale"><span>Overheated</span><span>Fair</span><span>Deep value</span></div>
+      <div class="groups" id="groups"></div>
+      <div class="dca">
+        <div class="mult" id="mult">—</div>
+        <div style="font-size:.85rem"><strong>Suggested DCA size</strong><br><span class="muted">relative to your normal recurring buy. Score <span class="num" id="score">—</span>/100</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head">
+      <h2>Buy-level ladder</h2>
+      <p>Price levels where <span class="coinLbl">Bitcoin</span> has historically found support. Good places for limit orders. Levels above today's price have already been passed.</p>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Level</th><th class="r">Price</th><th class="r">From now</th><th class="r"><span class="unitLbl">Sats</span> per 100 <span class="curLbl">USD</span></th><th>Strength</th></tr></thead>
+        <tbody id="ladder"><tr><td colspan="5" class="muted">Waiting for data…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Price vs. support lines</h2><p>Daily close, log scale, last ~2 years. Dashed lines are the ladder levels.</p></div>
+    <div class="chart-box"><canvas id="chart"></canvas><div class="readout" id="readout"></div></div>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--accent)"></i>Price</span>
+      <span><i class="swatch" style="background:var(--bmsb)"></i>Bull market support band</span>
+      <span><i class="swatch" style="background:var(--ma200d)"></i>200-day MA</span>
+      <span><i class="swatch" style="background:var(--ma2y)"></i>2-year MA</span>
+      <span><i class="swatch" style="background:var(--ma200w)"></i>200-week MA</span>
+      <span class="btc-only"><i class="swatch" style="background:var(--pl)"></i>Power-law fair value</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Signals</h2><p>Each card shows the current value, a bar for how cheap that indicator says <span class="coinLbl">Bitcoin</span> is (full = cheap), today's reading, and below the line what the indicator measures. Indicators that can't load are left out and the remaining weights are rescaled.</p></div>
+    <div id="signals"></div>
+  </section>
+
+  <section class="two">
+    <div class="panel">
+      <div class="sec-head"><h2>Order planner</h2><p>Split a budget into a buy now plus limit orders down the ladder. Deeper levels get bigger orders.</p></div>
+      <div class="row">
+        <div class="field"><label class="label" for="budget">Budget (<span class="curLbl">USD</span>)</label><input id="budget" type="number" min="0" step="50" value="1000"></div>
+      </div>
+      <div class="table-scroll" style="margin-top:12px">
+        <table>
+          <thead><tr><th>Order</th><th class="r">Price</th><th class="r">Amount</th><th class="r"><span class="unitLbl">Sats</span></th></tr></thead>
+          <tbody id="plan"></tbody>
+          <tfoot id="planFoot"></tfoot>
+        </table>
+      </div>
+    </div>
+    <div style="display:grid;gap:18px;align-content:start">
+      <div class="panel">
+        <h2 style="margin-bottom:10px">Calculator</h2>
+        <div class="row">
+          <div class="field"><label class="label" for="calcAmt">Amount (<span class="curLbl">USD</span>)</label><input id="calcAmt" type="number" min="0" value="100"></div>
+          <div class="field"><label class="label" for="calcPrice">At <span class="symLbl">BTC</span> price</label><input id="calcPrice" type="number" min="0" placeholder="current"></div>
+        </div>
+        <div style="margin-top:12px"><div class="label">You get</div><div class="big-sats" id="calcOut">—</div><div class="muted num" id="calcBtc">&nbsp;</div></div>
+      </div>
+      <div class="panel">
+        <h2 style="margin-bottom:10px">Price alerts</h2>
+        <form id="alertForm" class="row">
+          <div class="field"><label class="label" for="alertPx">Alert when <span class="symLbl">BTC</span> ≤</label><input id="alertPx" type="number" min="0" step="any" required></div>
+          <button class="primary" type="submit">Add</button>
+        </form>
+        <ul class="alerts-list" id="alerts"></ul>
+        <p class="muted" style="font-size:.78rem;margin:8px 0 0">Checked every minute while this tab is open. Saved in this browser only.</p>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <footer>
+    <p id="method"></p>
+    <div><strong>Data sources</strong> (fetched directly by your browser)<ul class="src-list" id="sources"></ul></div>
+    <p>Prices: Kraken, with Binance as fallback, and USD prices converted at the frankfurter.app rate when needed. Bitcoin on-chain: mempool.space, blockchain.com, bitcoin-data.com. Ethereum MVRV: Coin Metrics community data. Ethereum fee income and value locked: DefiLlama. Bitcoin dominance: CoinGecko. Fear &amp; Greed: alternative.me. Funding: Binance futures, with Bybit as fallback. Past behaviour doesn't guarantee future behaviour. This is a decision aid, not financial advice.</p>
+  </footer>
+</div>
+
+<script>
+/* Crypto Buy Levels: one self-contained page, no build step.
+   Sections below: config and state · fetching (prices, saved copies) · extra data sources · math helpers ·
+   indicator descriptions · Bitcoin model · Ethereum/Solana model · rendering (overview, detail) · chart · lifecycle.
+   Each indicator is an object { g: group, name, w: weight (0 = info only), disp: shown value, score: 0-100 cheapness, note: current reading };
+   its plain-language description comes from WHAT. For debugging, window.cryptoBuyLevels exposes the state. */
+(() => {
+"use strict";
+const SATS = 1e8;
+const LAST_HALVING = Date.UTC(2024, 3, 20), NEXT_HALVING = Date.UTC(2028, 3, 15), GENESIS = Date.UTC(2009, 0, 3);
+const MIN = 60_000, HOUR = 60 * MIN;
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("sbl:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("sbl:" + k, JSON.stringify(v)); } catch {} }
+};
+const COINS = {
+  BTC: { name: "Bitcoin", glyph: "₿", kraken: "XBT", binance: "BTC", conf: "Backtested on 2015–2026" },
+  ETH: { name: "Ethereum", glyph: "Ξ", kraken: "ETH", binance: "ETH", conf: "Backtested on 2018–2026" },
+  SOL: { name: "Solana", glyph: "◎", kraken: "SOL", binance: "SOL", conf: "Low confidence: too little history to backtest" }
+};
+const SYMS = Object.keys(COINS), BASE = { BTC: .5, ETH: .25, SOL: .25 };
+const A = { BTC: {}, ETH: {}, SOL: {} };                     // per-coin state: daily, weekly, spot, spotFn, src, m, levels
+const G = { cur: store.get("cur", "USD"), view: "overview", ext: {}, srcState: {} };
+
+/* ---------- fetching ---------- */
+async function getJSON(url, ms = 20000) {
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), ms);
+  try { const r = await fetch(url, { signal: ctl.signal, cache: "no-store" }); if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); }
+  catch (e) { throw new Error(e.name === "AbortError" ? "timed out" : e instanceof TypeError ? "blocked or offline" : e.message); }
+  finally { clearTimeout(t); }
+}
+const clean = rows => rows.filter(r => r.c > 0 && r.h > 0 && r.l > 0 && isFinite(r.c + r.h + r.l));   // drop empty or broken candles
+async function krakenOHLC(pair, interval) {
+  const j = await getJSON(`https://api.kraken.com/0/public/OHLC?pair=${pair}&interval=${interval}`);
+  if (j.error && j.error.length) throw new Error(j.error[0]);
+  const k = Object.keys(j.result).find(k => k !== "last");
+  return clean(j.result[k].map(r => ({ t: r[0] * 1000, h: +r[2], l: +r[3], c: +r[4] })));
+}
+async function krakenSpot(pair) {
+  const j = await getJSON(`https://api.kraken.com/0/public/Ticker?pair=${pair}`);
+  if (j.error && j.error.length) throw new Error(j.error[0]);
+  const k = Object.keys(j.result)[0]; return +j.result[k].c[0];
+}
+async function binanceOHLC(sym, interval) {
+  const j = await getJSON(`https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${interval}&limit=1000`);
+  return clean(j.map(r => ({ t: r[0], h: +r[2], l: +r[3], c: +r[4] })));
+}
+async function binanceSpot(sym) { const j = await getJSON(`https://api.binance.com/api/v3/ticker/price?symbol=${sym}`); return +j.price; }
+let fxMemo = {};
+function fxRate(cur) {            // USD -> selected currency, one request shared by all callers
+  if (cur === "USD") return Promise.resolve(1);
+  if (!fxMemo[cur]) fxMemo[cur] = (async () => {
+    try { const j = await getJSON(`https://api.frankfurter.app/latest?from=USD&to=${cur}`); if (j.rates && j.rates[cur]) return +j.rates[cur]; } catch {}
+    try { const j = await getJSON("https://open.er-api.com/v6/latest/USD"); if (j.rates && j.rates[cur]) return +j.rates[cur]; } catch {}
+    const [a, b] = await Promise.all([krakenSpot("XBT" + cur), krakenSpot("XBTUSD")]); if (a > 0 && b > 0) return a / b;
+    throw new Error("no exchange rate");
+  })().catch(e => { delete fxMemo[cur]; throw e; });
+  return fxMemo[cur];
+}
+const scale = (rows, f) => rows.map(r => ({ t: r.t, h: r.h * f, l: r.l * f, c: r.c * f }));
+
+function priceSources(sym, cur) {
+  const c = COINS[sym], kp = c.kraken + cur, ku = c.kraken + "USD", bu = c.binance + "USDT", bp = cur === "USD" ? bu : cur === "EUR" ? c.binance + "EUR" : null, list = [];
+  const kr = async (pair, f) => { const [d, w, s] = await Promise.all([krakenOHLC(pair, 1440), krakenOHLC(pair, 10080), krakenSpot(pair)]);
+    return { daily: scale(d, f), weekly: scale(w, f), spot: s * f, spotFn: async () => (await krakenSpot(pair)) * f }; };
+  const bn = async (pair, f) => { const [d, w, s] = await Promise.all([binanceOHLC(pair, "1d"), binanceOHLC(pair, "1w"), binanceSpot(pair)]);
+    return { daily: scale(d, f), weekly: scale(w, f), spot: s * f, spotFn: async () => (await binanceSpot(pair)) * f }; };
+  list.push({ name: "Kraken", run: () => kr(kp, 1) });
+  if (bp) list.push({ name: "Binance", run: () => bn(bp, 1) });
+  if (cur !== "USD") {
+    list.push({ name: "Kraken USD × FX", run: async () => kr(ku, await fxRate(cur)) });
+    list.push({ name: "Binance USD × FX", run: async () => bn(bu, await fxRate(cur)) });
+  }
+  return list;
+}
+async function loadCoin(sym) {
+  const fails = [];
+  for (const src of priceSources(sym, G.cur)) {
+    try {
+      const r = await src.run();
+      if (!r.daily.length || !r.weekly.length || !(r.spot > 0)) throw new Error("empty response");
+      Object.assign(A[sym], { daily: r.daily, weekly: r.weekly, spot: r.spot, spotFn: r.spotFn, src: src.name, cur: G.cur, at: Date.now(), saved: false });
+      G.srcState[sym + " prices"] = { ok: true, msg: src.name, at: Date.now() };
+      store.set(`px:${sym}:${G.cur}`, { daily: r.daily, weekly: r.weekly, spot: r.spot, src: src.name, at: Date.now() });
+      return;
+    } catch (e) { fails.push(`${src.name}: ${e.message || e}`); }
+  }
+  const a = A[sym], kept = a.spot && a.cur === G.cur;
+  G.srcState[sym + " prices"] = { ok: false, msg: "all sources failed" + (kept ? `; showing saved prices from ${new Date(a.at).toLocaleString()}` : "") };
+  throw new Error(`${sym}: ${fails.join(" · ")}`);
+}
+// Show the last saved prices and extra data straight away (up to 7 days old), before the live refresh finishes.
+function hydrate() {
+  let n = 0;
+  for (const sym of SYMS) { const c = store.get(`px:${sym}:${G.cur}`, null);
+    if (!c || !c.daily || !c.weekly || !(c.spot > 0) || Date.now() - c.at > 7 * 24 * HOUR) { if (A[sym].cur !== G.cur) A[sym] = {}; continue; }
+    A[sym] = { daily: c.daily, weekly: c.weekly, spot: c.spot, spotFn: null, src: c.src, cur: G.cur, at: c.at, saved: true }; n++; }
+  for (const [key, def] of Object.entries(EXTRAS)) { const c = store.get("x:" + key + (def.keyed ? ":" + G.cur : ""), null); G.ext[key] = c ? c.v : null; }
+  return n;
+}
+
+/* ---------- extra data (on-chain, sentiment, FX) ---------- */
+// Each loader returns a plain value; results are cached in localStorage for `ttl`.
+const firstNum = (obj, re) => { for (const [k, v] of Object.entries(obj || {})) if (re.test(k) && isFinite(+v) && v !== null && v !== "") return +v; return null; };
+const lastRow = j => Array.isArray(j) ? j[j.length - 1] : j;
+const EXTRAS = {
+  fx: { label: "Exchange rate", ttl: 6 * HOUR, keyed: true, load: () => fxRate(G.cur) },
+  hash: { label: "Hashrate (mempool.space)", ttl: 3 * HOUR, load: async () => {
+    const j = await getJSON("https://mempool.space/api/v1/mining/hashrate/1y");
+    const arr = (j.hashrates || []).map(h => +h.avgHashrate).filter(x => x > 0);
+    if (arr.length < 90) throw new Error("not enough data"); return arr; } },
+  puell: { label: "Miner revenue (blockchain.com)", ttl: 3 * HOUR, load: async () => {
+    const j = await getJSON("https://api.blockchain.info/charts/miners-revenue?timespan=2years&format=json&cors=true");
+    const arr = (j.values || []).map(v => +v.y).filter(x => x > 0);
+    if (arr.length < 365) throw new Error("not enough data"); return arr; } },
+  thermo: { label: "Thermocap (blockchain.com)", ttl: 12 * HOUR, load: async () => {
+    const u = n => `https://api.blockchain.info/charts/${n}?timespan=all&sampled=false&format=json&cors=true`;
+    const [rev, cap] = await Promise.all([getJSON(u("miners-revenue")), getJSON(u("market-cap"))]);
+    const rv = (rev.values || []).filter(v => v.y >= 0), cp = (cap.values || []).filter(v => v.y > 0);
+    if (rv.length < 500 || cp.length < 500) throw new Error("not enough data");
+    // cumulative miner revenue, integrated over time so it works for daily or thinned-out data
+    const cumT = [], cumV = []; let cum = 0;
+    for (let i = 0; i < rv.length; i++) { cum += rv[i].y * (i ? (rv[i].x - rv[i - 1].x) / 86400 : 1); cumT.push(rv[i].x); cumV.push(cum); }
+    const cumAt = t => { let lo = 0, hi = cumT.length - 1; if (t <= cumT[0]) return cumV[0]; if (t >= cumT[hi]) return cumV[hi];
+      while (hi - lo > 1) { const m = (lo + hi) >> 1; if (cumT[m] <= t) lo = m; else hi = m; }
+      return cumV[lo] + (cumV[hi] - cumV[lo]) * (t - cumT[lo]) / (cumT[hi] - cumT[lo]); };
+    // weekly samples of market value / cumulative revenue, newest last, about 4 years
+    const hist = []; let next = cp[cp.length - 1].x;
+    for (let i = cp.length - 1; i >= 0 && hist.length < 209; i--) if (cp[i].x <= next) { const c = cumAt(cp[i].x); if (c > 0) hist.unshift(cp[i].y / c); next = cp[i].x - 7 * 86400 + 3600; }
+    return { cum, hist }; } },
+  mvrv: { label: "MVRV Z-score (bitcoin-data.com)", ttl: 6 * HOUR, noForce: true, load: async () => {
+    let row; try { row = lastRow(await getJSON("https://bitcoin-data.com/v1/mvrv-zscore/last")); }
+    catch { row = lastRow(await getJSON("https://bitcoin-data.com/v1/mvrv-zscore")); }
+    const v = firstNum(row, /z.?score/i); if (v == null) throw new Error("unexpected format"); return v; } },
+  realized: { label: "Realized price (bitcoin-data.com)", ttl: 6 * HOUR, noForce: true, load: async () => {
+    let row; try { row = lastRow(await getJSON("https://bitcoin-data.com/v1/realized-price/last")); }
+    catch { row = lastRow(await getJSON("https://bitcoin-data.com/v1/realized-price")); }
+    const v = firstNum(row, /realized/i); if (!(v > 0)) throw new Error("unexpected format"); return v; } },
+  fng: { label: "Fear & Greed (alternative.me)", ttl: HOUR, load: async () => {
+    const j = await getJSON("https://api.alternative.me/fng/?limit=1");
+    const d = j.data && j.data[0]; if (!d) throw new Error("unexpected format"); return { v: +d.value, cls: d.value_classification }; } }
+};
+const fundingLoader = pair => async () => {
+  try { const j = await getJSON("https://fapi.binance.com/fapi/v1/premiumIndex?symbol=" + pair); if (isFinite(+j.lastFundingRate)) return { v: +j.lastFundingRate, src: "Binance" }; } catch {}
+  const j = await getJSON("https://api.bybit.com/v5/market/tickers?category=linear&symbol=" + pair);
+  const r = j.result && j.result.list && j.result.list[0]; if (!r || !isFinite(+r.fundingRate)) throw new Error("unexpected format");
+  return { v: +r.fundingRate, src: "Bybit" }; };
+const tvlLoader = chain => async () => {
+  const j = await getJSON("https://api.llama.fi/v2/historicalChainTvl/" + chain);
+  if (!Array.isArray(j) || j.length < 400) throw new Error("not enough data");
+  const v = i => +j[Math.max(0, j.length - 1 - i)].tvl; return { now: v(0), d30: v(30), d365: v(365) }; };
+Object.assign(EXTRAS, {
+  fundingBTC: { label: "BTC funding rate (Binance/Bybit)", ttl: 30 * MIN, load: fundingLoader("BTCUSDT") },
+  fundingETH: { label: "ETH funding rate (Binance/Bybit)", ttl: 30 * MIN, load: fundingLoader("ETHUSDT") },
+  fundingSOL: { label: "SOL funding rate (Binance/Bybit)", ttl: 30 * MIN, load: fundingLoader("SOLUSDT") },
+  // ETH MVRV: a tiny request (last few days only) with a long timeout, because the free Coin Metrics service can be slow
+  mvrvETH: { label: "ETH MVRV (Coin Metrics)", ttl: 6 * HOUR, load: async () => {
+    const u = "https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?assets=eth&metrics=CapMVRVCur,PriceUSD&frequency=1d&page_size=5&paging_from=end";
+    let j; try { j = await getJSON(u, 45000); } catch { j = await getJSON(u, 45000); }
+    const mv = (j.data || []).filter(r => +r.CapMVRVCur > 0 && +r.PriceUSD > 0).sort((x, y) => x.time < y.time ? 1 : -1)[0];
+    if (!mv) throw new Error("unexpected format");
+    return { mvrv: +mv.CapMVRVCur, realizedUSD: +mv.PriceUSD / +mv.CapMVRVCur }; } },
+  // ETH fee income: DefiLlama first, Coin Metrics as fallback
+  feesETH: { label: "ETH fee income (DefiLlama)", ttl: 6 * HOUR, load: async () => {
+    const ratio = fee => { if (fee.length < 400) throw new Error("not enough data"); return { feeRatio: sma(fee, 30) / sma(fee, Math.min(730, fee.length)) }; };
+    try { const j = await getJSON("https://api.llama.fi/summary/fees/ethereum?dataType=dailyFees", 30000);
+      return ratio((j.totalDataChart || []).map(r => +r[1]).filter(x => x > 0).slice(-731, -1)); } catch {}
+    const start = new Date(Date.now() - 740 * 864e5).toISOString().slice(0, 10);
+    const j = await getJSON(`https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?assets=eth&metrics=FeeTotNtv,PriceUSD&frequency=1d&page_size=1000&start_time=${start}`, 60000);
+    return ratio((j.data || []).filter(r => r.PriceUSD != null).sort((x, y) => x.time < y.time ? -1 : 1).map(r => (+r.FeeTotNtv || 0) * (+r.PriceUSD))); } },
+  // Bitcoin's share of total crypto market value. A small daily log is kept in this browser to show the 30-day change.
+  dom: { label: "Bitcoin dominance (CoinGecko)", ttl: 2 * HOUR, load: async () => {
+    const j = await getJSON("https://api.coingecko.com/api/v3/global"), m = j.data && j.data.market_cap_percentage;
+    if (!m || !(m.btc > 0)) throw new Error("unexpected format");
+    const log = store.get("domlog", {}), today = new Date().toISOString().slice(0, 10); log[today] = +m.btc.toFixed(2);
+    const keys = Object.keys(log).sort().slice(-120), kept = {}; keys.forEach(k => kept[k] = log[k]); store.set("domlog", kept);
+    const cut = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10), old = keys.filter(k => k <= cut).pop(), first = keys[0];
+    return { btc: m.btc, eth: m.eth || null, sol: m.sol || null, ago30: old ? kept[old] : null, first: first !== today ? { d: first, v: kept[first] } : null }; } },
+  tvlETH: { label: "Ethereum value locked (DefiLlama)", ttl: 6 * HOUR, load: tvlLoader("Ethereum") },
+  tvlSOL: { label: "Solana value locked (DefiLlama)", ttl: 6 * HOUR, load: tvlLoader("Solana") }
+});
+async function loadExtras(force) {
+  await Promise.all(Object.entries(EXTRAS).map(async ([key, def]) => {
+    const ck = "x:" + key + (def.keyed ? ":" + G.cur : "");
+    const cached = store.get(ck, null);
+    const fresh = cached && Date.now() - cached.at < def.ttl && !(force && !def.noForce && Date.now() - cached.at > 2 * MIN);
+    if (fresh) { G.ext[key] = cached.v; G.srcState[def.label] = { ok: true, at: cached.at }; return; }
+    try {
+      const v = await def.load(); G.ext[key] = v; store.set(ck, { v, at: Date.now() });
+      G.srcState[def.label] = { ok: true, at: Date.now() };
+    } catch (e) {
+      if (cached) { G.ext[key] = cached.v; G.srcState[def.label] = { ok: true, at: cached.at, msg: "using saved value" }; }
+      else { G.ext[key] = null; G.srcState[def.label] = { ok: false, msg: e.message || String(e) }; }
+    }
+  }));
+}
+
+/* ---------- math ---------- */
+const sma = (a, n) => a.length < n ? null : a.slice(-n).reduce((s, x) => s + x, 0) / n;
+function smaSeries(a, n) { const out = new Array(a.length).fill(null); let s = 0;
+  for (let i = 0; i < a.length; i++) { s += a[i]; if (i >= n) s -= a[i - n]; if (i >= n - 1) out[i] = s / n; } return out; }
+function emaSeries(a, n) { const k = 2 / (n + 1), out = []; let e = a[0];
+  for (let i = 0; i < a.length; i++) { e = i ? a[i] * k + e * (1 - k) : a[0]; out.push(e); } return out; }
+function rsiSeries(c, n = 14) {
+  const out = new Array(c.length).fill(null); if (c.length <= n + 1) return out;
+  let g = 0, l = 0;
+  for (let i = 1; i <= n; i++) { const d = c[i] - c[i - 1]; d > 0 ? g += d : l -= d; }
+  g /= n; l /= n; out[n] = l === 0 ? 100 : 100 - 100 / (1 + g / l);
+  for (let i = n + 1; i < c.length; i++) { const d = c[i] - c[i - 1]; g = (g * (n - 1) + Math.max(d, 0)) / n; l = (l * (n - 1) + Math.max(-d, 0)) / n;
+    out[i] = l === 0 ? 100 : 100 - 100 / (1 + g / l); }
+  return out;
+}
+const last = a => a[a.length - 1];
+function pw(x, pts) { // piecewise linear, clamped
+  if (x == null || !isFinite(x)) return null;
+  if (x <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) if (x <= pts[i][0]) {
+    const [x0, y0] = pts[i - 1], [x1, y1] = pts[i]; return y0 + (y1 - y0) * (x - x0) / (x1 - x0); }
+  return pts[pts.length - 1][1];
+}
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+// score 0-100 from where `cur` sits among earlier values: lowest = 100
+const pctScore = (prior, cur) => 100 * (1 - prior.filter(v => v < cur).length / prior.length);
+// Power law (Santostasi): fair price in USD = 1.0117e-17 × days-since-genesis^5.82
+const powerLawUSD = t => 1.0117e-17 * Math.pow((t - GENESIS) / 864e5, 5.82);
+const PL_FLOOR = 0.42;
+
+const ZONES = [
+  { min: 80, name: "Generational buy", mult: "3×", c: "--z5", text: "Price is at or below long-term cycle floors. Historically the best entries.", hist: "100% of days in this zone were higher a year later (median +111%)" },
+  { min: 65, name: "Strong accumulate", mult: "2×", c: "--z4", text: "Well below trend. Increase buys and set limit orders lower down.", hist: "94% of days in this zone were higher a year later (median +132%)" },
+  { min: 50, name: "Accumulate", mult: "1.5×", c: "--z3", text: "Cheaper than usual. A good time to stack a bit extra.", hist: "93% of days in this zone were higher a year later (median +145%)" },
+  { min: 35, name: "Fair value", mult: "1×", c: "--z2", text: "Around trend. Keep your normal recurring buy.", hist: "69% of days in this zone were higher a year later (median +39%)" },
+  { min: 20, name: "Expensive", mult: "0.5×", c: "--z1", text: "Stretched above trend. Buy smaller and wait for the ladder.", hist: "only 32% of days in this zone were higher a year later (median −16%)" },
+  { min: -1, name: "Overheated", mult: "0×", c: "--z0", text: "Far above every support line. Historically near cycle tops; hold off.", hist: "47% of days in this zone were higher a year later (median −9%)" }
+];
+const zoneFor = s => ZONES.find(z => s >= z.min);
+const GROUPS = [
+  { key: "val", name: "Valuation", desc: "Where price sits against long-term trend lines" },
+  { key: "mom", name: "Momentum", desc: "Is the trend turning? RSI and MACD" },
+  { key: "chain", name: "On-chain", desc: "What holders and miners are doing" },
+  { key: "sent", name: "Sentiment", desc: "Crowd mood and leverage" }
+];
+
+/* ---------- indicator descriptions (what each one measures) ---------- */
+const WHAT = {
+  "Mayer Multiple": "Today's price divided by its average over the last 200 days. It shows how far price has moved above or below its medium-term trend.",
+  "Price ÷ 200-week MA": "Price divided by its average over the last 200 weeks (about 4 years). This average moves slowly and has marked the floor area of past bear markets.",
+  "Price ÷ 2-year MA": "Price divided by its average over the last 2 years. Below 1 means the coin costs less than its 2-year average.",
+  "Power-law corridor": "Price divided by a long-term growth curve fitted to Bitcoin's price since 2009. It shows whether price is above or below its long-run trend.",
+  "AHR999 index": "Multiplies two ratios: price against its 200-day average cost, and price against a long-term growth curve. It was built to guide regular buying.",
+  "Drawdown from ATH": "How far the price is below its all-time high (ATH).",
+  "Bull market support band": "Price against the band formed by the 20-week and 21-week averages. In bull markets, dips have often stopped at this band.",
+  "Pi Cycle Top": "Compares the 111-day average with twice the 350-day average. When the first reaches the second (a value of 1), past cycles were at their top.",
+  "200-week MA slope": "How fast the 200-week average has risen over the past year, ranked against the last 4 years. Slow growth has come after bear markets.",
+  "Halving cycle phase": "Days since the last halving, when the reward miners get in new coins is cut in half (about every 4 years). Past cycles followed a similar timeline after each one.",
+  "Weekly RSI (14)": "Relative Strength Index on weekly prices: recent gains against recent losses over 14 weeks, on a 0–100 scale. Below 30 is called oversold, above 70 overbought.",
+  "Daily RSI (14)": "Relative Strength Index on daily prices: recent gains against recent losses over 14 days, on a 0–100 scale. Below 30 is called oversold, above 70 overbought.",
+  "Weekly MACD (12, 26, 9)": "Moving Average Convergence Divergence: the gap between the 12-week and 26-week averages, compared with its own 9-week average. It shows whether the trend is gaining or losing strength.",
+  "RSI divergence (daily)": "Checks whether price and RSI disagree: a new price low with a higher RSI low (bullish), or a new price high with a lower RSI high (bearish).",
+  "Stochastic RSI (daily)": "Where today's RSI sits within its own range of the last 14 days, on a 0–100 scale. A faster, noisier version of RSI.",
+  "MVRV Z-score": "Market value minus realized value (what all coins cost when they last moved), divided by how much market value has varied over time. It shows how far holders as a group are in profit.",
+  "MVRV ratio": "Price divided by realized price, the average price at which all coins last moved. Below 1 means the average holder is at a loss.",
+  "Thermocap multiple": "Bitcoin's total market value divided by everything miners have ever been paid, ranked against the last 4 years.",
+  "Puell Multiple": "Miners' daily income divided by its one-year average. Low values mean miners are under financial stress, which has happened near market bottoms.",
+  "Hash Ribbons": "Compares the 30-day and 60-day averages of the network's computing power. When the 30-day falls below the 60-day, miners are switching off; the buy signal comes when that ends.",
+  "Fear & Greed Index": "A 0–100 reading of crypto market mood published by alternative.me, built from volatility, momentum, social media and surveys. Low means fear, high means greed.",
+  "Perp funding rate (8h)": "The fee that traders in perpetual futures pay each other every 8 hours. Positive means buyers using borrowed money are paying; negative means sellers are.",
+  "Network fee income": "Fees paid to use the Ethereum network over the last 30 days, compared with the 2-year average. It measures how busy the network is.",
+  "Value locked in apps": "The total money deposited in apps built on this network, such as lending and trading apps, as tracked by DefiLlama.",
+  "Bitcoin's score": "Bitcoin's own buy score from this dashboard, used here as an input.",
+  "Bitcoin dominance": "Bitcoin's share of the total market value of all cryptocurrencies.",
+  "/BTC": "This coin's price measured in Bitcoin, ranked against the last 4 years. It shows whether the coin is cheap or expensive compared with Bitcoin."
+};
+const describe = name => WHAT[name] || (name.endsWith("/BTC") ? WHAT["/BTC"] : "");
+
+/* ---------- Bitcoin model ---------- */
+function computeBTC(a) {
+  const p = a.spot, E = G.ext;
+  const dc = [...a.daily.slice(0, -1).map(x => x.c), p], wc = [...a.weekly.slice(0, -1).map(x => x.c), p];
+  const ma200d = sma(dc, 200), ma200w = sma(wc, 200), ma2y = sma(wc, 104);
+  const ath = Math.max(...a.weekly.map(x => x.h), ...a.daily.map(x => x.h), p);
+  const fx = E.fx || null;
+  const sig = [];
+  const add = o => sig.push(o);
+  const fmtR = v => v.toFixed(2) + "×";
+
+  /* --- Valuation --- */
+  const mayer = ma200d ? p / ma200d : null;
+  add({ g: "val", name: "Mayer Multiple", w: .04, disp: mayer && mayer.toFixed(2), score: pw(mayer, [[0.6, 100], [0.8, 85], [1, 60], [1.3, 35], [1.8, 10], [2.4, 0]]),
+    note: mayer == null ? "Needs 200 days of data." : mayer < 0.8 ? "Below 0.8: deep value, rare." : mayer < 1 ? "Below the 200-day trend." : mayer < 1.3 ? "Normal range above trend." : mayer < 1.8 ? "Stretched above trend; the 2024 and 2025 highs were at 1.2–1.8." : "Above 1.8: top zone in recent cycles." });
+  const r200w = ma200w ? p / ma200w : null;
+  add({ g: "val", name: "Price ÷ 200-week MA", w: .14, disp: r200w && fmtR(r200w), score: pw(r200w, [[1, 100], [1.3, 75], [2, 40], [2.5, 20], [3.5, 0]]),
+    note: r200w == null ? "Needs 200 weeks of data." : r200w <= 1 ? "At the cycle floor. Every past bear market bottomed here." : r200w < 1.3 ? "Close to the cycle floor." : r200w < 2 ? "Mid-cycle." : r200w < 2.5 ? "High; the 2024 and 2025 tops were at 2.2–2.4×." : "Far above the floor." });
+  const r2y = ma2y ? p / ma2y : null;
+  add({ g: "val", name: "Price ÷ 2-year MA", w: .07, disp: r2y && fmtR(r2y), score: pw(r2y, [[0.7, 100], [1, 80], [1.6, 40], [2.2, 15], [3, 0]]),
+    note: r2y == null ? "Needs 2 years of data." : r2y < 1 ? "Below the 2-year MA: a classic accumulation zone." : r2y < 1.6 ? "Above it, but not extended." : r2y < 2.2 ? "Extended; recent tops were at 1.6–2.4×." : "Top zone." });
+  const plFair = fx ? powerLawUSD(Date.now()) * fx : null, rPl = plFair ? p / plFair : null;
+  add({ g: "val", name: "Power-law corridor", w: .13, disp: rPl && fmtR(rPl), score: pw(rPl, [[0.45, 100], [0.6, 85], [0.85, 55], [1.15, 25], [1.8, 5], [2.5, 0]]),
+    note: rPl == null ? "Needs an exchange rate to convert the USD model." : `Fair value ${fmtCur(plFair)}. ` + (rPl < 0.6 ? "Near the long-term floor of the corridor (past bear-market lows: 0.43–0.60×)." : rPl < 0.85 ? "Below the long-term fair-value line." : rPl < 1.15 ? "Around fair value; the 2024 and 2025 tops were at 1.1–1.2×." : "Above fair value.") });
+  // AHR999: (price / 200-day geometric mean) x (price / long-term growth curve). Info only: it overlaps with the model.
+  const gm200 = dc.length >= 200 ? Math.exp(dc.slice(-200).reduce((x, v) => x + Math.log(v), 0) / 200) : null;
+  const ahrFit = fx ? Math.pow(10, 5.84 * Math.log10((Date.now() - GENESIS) / 864e5) - 17.01) * fx : null;
+  const ahr = gm200 && ahrFit ? (p / gm200) * (p / ahrFit) : null;
+  add({ g: "val", name: "AHR999 index", w: 0, disp: ahr && ahr.toFixed(2), score: pw(ahr, [[0.3, 100], [0.45, 88], [0.8, 62], [1.2, 40], [2, 18], [4, 0]]),
+    note: ahr == null ? "Needs 200 days of data and an exchange rate." : (ahr < 0.45 ? "Below 0.45, the index's bottom zone: every such day since 2015 was higher a year later. The five major lows were all at 0.23–0.28." : ahr < 1.2 ? "Between 0.45 and 1.2, the regular-buying zone: 89% of such days were higher a year later." : "Above 1.2: only 41% of such days were higher a year later.") + " Info only: it measures almost the same thing as the score." });
+  const dd = (1 - p / ath) * 100;
+  add({ g: "val", name: "Drawdown from ATH", w: .07, disp: "−" + dd.toFixed(1) + "%", score: pw(dd, [[0, 5], [20, 40], [40, 70], [60, 95], [75, 100]]),
+    note: dd < 10 ? "Near the all-time high." : dd < 30 ? "Normal bull-market pullback." : dd < 50 ? "Deep correction." : "Bear-market depth (past bottoms: −75% to −85%)." });
+  const sma20w = sma(wc, 20), ema21w = wc.length > 21 ? last(emaSeries(wc, 21)) : null;
+  const bLo = sma20w && ema21w ? Math.min(sma20w, ema21w) : null, bHi = bLo ? Math.max(sma20w, ema21w) : null, rB = bLo ? p / bLo : null;
+  add({ g: "val", name: "Bull market support band", w: .02, disp: rB && fmtR(rB), score: pw(rB, [[0.8, 90], [1, 70], [1.1, 50], [1.4, 25], [2, 0]]),
+    note: rB == null ? "Needs 21 weeks of data." : `Band ${fmtCur(bLo)}–${fmtCur(bHi)}. ` + (rB < 1 ? "Below the band: a dip-buy zone in bull markets, resistance in bear markets." : rB < 1.15 ? "Sitting on the band: a common bull-market bounce zone." : "Well above the band.") });
+  const ma111 = sma(dc, 111), ma350 = sma(dc, 350), pi = ma111 && ma350 ? ma111 / (2 * ma350) : null;
+  add({ g: "val", name: "Pi Cycle Top", w: 0, disp: pi && pi.toFixed(2), score: pw(pi, [[0.6, 65], [0.8, 45], [0.9, 25], [1, 0]]),
+    note: pi == null ? "Needs 350 days of data." : (pi >= 1 ? "Crossed: this has marked past cycle tops. Stop buying." : pi >= 0.9 ? "Close to crossing: top risk is rising." : "Far from a cycle-top signal.") + " Not weighted; at 0.95 or above it caps the total score at 20." });
+  // 200-week MA slope: growth of the 200-week MA over the past 52 weeks, ranked against the last 4 years
+  const maW = smaSeries(wc, 200), sl = [];
+  for (let i = 251; i < wc.length; i++) if (maW[i - 52] != null) sl.push(maW[i] / maW[i - 52] - 1);
+  const slope = sl.length > 104 ? last(sl) : null, slopeSc = slope == null ? null : pctScore(sl.slice(-208, -1), slope);
+  add({ g: "val", name: "200-week MA slope", w: .05, disp: slope != null && `+${(slope * 100).toFixed(0)}%/yr`.replace("+-", "−"), score: slopeSc,
+    note: slope == null ? "Needs about 7 years of weekly data." : `Growth of the 200-week MA over the past year. Slower than ${Math.round(slopeSc)}% of the last 4 years. ` + (slopeSc >= 60 ? "Slow growth has followed bear markets and preceded the best returns." : slopeSc >= 35 ? "Mid-range." : "Fast growth: late in a bull run.") });
+  const hDay = Math.floor((Date.now() - LAST_HALVING) / 864e5);
+  add({ g: "val", name: "Halving cycle phase", w: 0, disp: "Day " + hDay, score: hDay < 180 ? 85 : hDay < 540 ? 55 : hDay <= 900 ? 20 : 75,
+    note: (hDay < 180 ? "First 6 months after a halving: averaged +293% over the next year." : hDay < 540 ? "Days 180–540: the bull-run phase in past cycles, averaging +29% over the next year." : hDay <= 900 ? "Days 540–900 were the bear phase in all three past cycles, averaging −5% over the next year." : "Past day 900: in past cycles the bear phase was over by now, and the next year averaged +128%.") + " Only three cycles of history, so info only." });
+
+  /* --- Momentum --- */
+  const rsiW = last(rsiSeries(wc)), rsiDser = rsiSeries(dc), rsiD = last(rsiDser);
+  add({ g: "mom", name: "Weekly RSI (14)", w: .03, disp: rsiW != null && rsiW.toFixed(0), score: pw(rsiW, [[30, 100], [50, 55], [70, 15], [85, 0]]),
+    note: rsiW == null ? "Not enough data." : rsiW < 30 ? "Oversold on the weekly. Rare and historically a strong entry." : rsiW < 45 ? "Weak momentum." : rsiW < 70 ? "Neutral." : "Overbought." });
+  add({ g: "mom", name: "Daily RSI (14)", w: 0, disp: rsiD != null && rsiD.toFixed(0), score: pw(rsiD, [[25, 100], [50, 50], [75, 0]]),
+    note: rsiD == null ? "Not enough data." : (rsiD < 30 ? "Short-term oversold." : rsiD < 70 ? "Short-term neutral." : "Short-term overbought.") + " Info only: in the backtest it did not predict the next weeks." });
+  add({ g: "mom", name: "Weekly MACD (12, 26, 9)", w: .02, ...macdState(wc, p, true) });
+  // RSI divergence on daily lows/highs: last 15 days vs 16–60 days ago
+  let div = { g: "mom", name: "RSI divergence (daily)", w: 0, disp: null, score: null, note: "Not enough data." };
+  const D = a.daily, nD = D.length;
+  if (nD > 80 && rsiDser[nD - 61] != null) {
+    const lows = D.map(x => x.l), highs = D.map(x => x.h);
+    const argBy = (arr, a, b, cmp) => { let k = a; for (let i = a; i <= b; i++) if (cmp(arr[i], arr[k])) k = i; return k; };
+    const rl = argBy(lows, nD - 15, nD - 1, (x, y) => x < y), pl = argBy(lows, nD - 60, nD - 16, (x, y) => x < y);
+    const rh = argBy(highs, nD - 15, nD - 1, (x, y) => x > y), ph = argBy(highs, nD - 60, nD - 16, (x, y) => x > y);
+    if (lows[rl] < lows[pl] && rsiDser[rl] > rsiDser[pl] + 2) div = { ...div, disp: "Bullish", score: 85, note: `Price made a lower low but RSI made a higher low (${rsiDser[pl].toFixed(0)} → ${rsiDser[rl].toFixed(0)}). Sellers are losing strength. Info only: in the backtest this did not beat an average day.` };
+    else if (highs[rh] > highs[ph] && rsiDser[rh] < rsiDser[ph] - 2) div = { ...div, disp: "Bearish", score: 15, note: `Price made a higher high but RSI made a lower high (${rsiDser[ph].toFixed(0)} → ${rsiDser[rh].toFixed(0)}). Buyers are losing strength. Info only.` };
+    else div = { ...div, disp: "None", score: 50, note: "No divergence between price and RSI in the last 60 days. Info only." };
+  }
+  add(div);
+  // Stochastic RSI (display only)
+  let st = { g: "mom", name: "Stochastic RSI (daily)", w: 0, disp: null, score: null, note: "Not enough data." };
+  const rv = rsiDser.filter(x => x != null);
+  if (rv.length > 20) {
+    const raw = []; for (let i = 13; i < rv.length; i++) { const w = rv.slice(i - 13, i + 1), lo = Math.min(...w), hi = Math.max(...w); raw.push(hi === lo ? 50 : (rv[i] - lo) / (hi - lo) * 100); }
+    const k = sma(raw, 3);
+    st = { ...st, disp: k.toFixed(0), score: pw(k, [[10, 90], [50, 50], [90, 10]]), note: (k < 20 ? "Oversold: short-term bounce likely." : k > 80 ? "Overbought: short-term pullback likely." : "Mid-range.") + " Shown for timing only, not part of the score." };
+  }
+  add(st);
+
+  /* --- On-chain --- */
+  const z = E.mvrv, rp = E.realized != null && fx ? E.realized * fx : null;
+  const mv = rp ? p / rp : null; // plain MVRV ratio, used when the Z-score can't load
+  if (z != null) add({ g: "chain", name: "MVRV Z-score", w: .11, disp: z.toFixed(2), score: pw(z, [[-0.3, 100], [0.2, 85], [1, 60], [2, 35], [2.8, 15], [4.5, 0]]),
+    note: (z < 0 ? "Below 0: market value under realized value. Every past cycle bottom was here." : z < 1 ? "Low: historically good accumulation." : z < 2 ? "Mid-cycle." : z < 2.8 ? "Elevated; the 2024 and 2025 tops were at 2.5–2.9." : "Top zone.") + (rp ? ` Realized price ${fmtCur(rp)} (price is ${fmtR(mv)} of it).` : "") });
+  else add({ g: "chain", name: "MVRV ratio", w: .11, disp: mv && fmtR(mv), score: pw(mv, [[0.8, 100], [1, 88], [1.5, 60], [2, 35], [2.5, 15], [3.2, 0]]),
+    note: mv == null ? "Couldn't load (see data sources below)." : `Price ÷ realized price (${fmtCur(rp)}). ` + (mv < 1 ? "Below 1: the average holder is at a loss. Every past cycle bottom was here." : mv < 1.5 ? "Low: historically good accumulation." : mv < 2 ? "Mid-cycle." : "Elevated; recent tops were at 2.3–2.7×.") });
+  let th = { g: "chain", name: "Thermocap multiple", w: .10, disp: null, score: null, note: "Couldn't load (see data sources below)." };
+  if (E.thermo && E.thermo.hist && E.thermo.hist.length > 104) {
+    const T = E.thermo, supply = 19687500 + 450 * Math.max(0, (Date.now() - LAST_HALVING) / 864e5); // coins in existence
+    const cur = fx ? (p / fx) * supply / T.cum : last(T.hist), sc = pctScore(T.hist.slice(-208, -1), cur);
+    th = { ...th, disp: cur.toFixed(1) + "×", score: sc, note: `Market value is ${cur.toFixed(1)}× everything miners have ever been paid. Lower than ${Math.round(sc)}% of the last 4 years. ` + (sc >= 70 ? "Low for this cycle: historically a good time to accumulate." : sc >= 35 ? "Mid-range." : "High for this cycle.") };
+  }
+  add(th);
+  let puell = null;
+  if (E.puell) { const a = E.puell; puell = last(a) / sma(a, 365); }
+  add({ g: "chain", name: "Puell Multiple", w: .07, disp: puell && puell.toFixed(2), score: pw(puell, [[0.45, 100], [0.7, 80], [1, 55], [1.5, 30], [2.2, 10], [3, 0]]),
+    note: puell == null ? "Couldn't load (see data sources below)." : puell < 0.5 ? "Below 0.5: miners under heavy stress. Historically a bottom zone." : puell < 0.8 ? "Miner revenue below average: value zone." : puell < 1.5 ? "Normal." : "Miners earning far above average: historically near tops." });
+  let hr = { g: "chain", name: "Hash Ribbons", w: .03, disp: null, score: null, note: "Couldn't load (see data sources below)." };
+  if (E.hash) {
+    const a = E.hash, s30 = smaSeries(a, 30), s60 = smaSeries(a, 60), n = a.length;
+    const capNow = s30[n - 1] < s60[n - 1];
+    let recentCap = false; for (let i = n - 31; i < n - 1; i++) if (s30[i] != null && s60[i] != null && s30[i] < s60[i]) recentCap = true;
+    if (!capNow && recentCap) hr = { ...hr, disp: "Buy signal", score: 90, note: "Miner capitulation just ended (30-day hashrate crossed back above 60-day). Historically one of the best buy signals." };
+    else if (capNow) hr = { ...hr, disp: "Capitulation", score: 55, note: "Miners are capitulating (30-day hashrate below 60-day). Roughly neutral by itself; the buy signal comes when it ends." };
+    else hr = { ...hr, disp: "Healthy", score: 45, note: "Hashrate trending up; no capitulation." };
+  }
+  add(hr);
+
+  /* --- Sentiment --- */
+  const fg = E.fng;
+  add({ g: "sent", name: "Fear & Greed Index", w: .07, disp: fg && `${fg.v} · ${fg.cls}`, score: fg ? pw(fg.v, [[10, 100], [25, 85], [50, 50], [75, 15], [90, 0]]) : null,
+    note: !fg ? "Couldn't load (see data sources below)." : fg.v < 25 ? "Extreme fear: historically a good time to buy." : fg.v < 45 ? "Fear." : fg.v < 56 ? "Neutral." : fg.v < 75 ? "Greed." : "Extreme greed: crowd is euphoric, be careful." });
+  const fr = E.fundingBTC;
+  add({ g: "sent", name: "Perp funding rate (8h)", w: .05, disp: fr && `${(fr.v * 100).toFixed(4)}%`, score: fr ? pw(fr.v, [[-0.0003, 95], [-0.0001, 80], [0, 65], [0.0001, 45], [0.0003, 20], [0.0008, 0]]) : null,
+    note: !fr ? "Couldn't load (see data sources below)." : (fr.v < 0 ? "Negative: shorts are paying longs, the crowd is betting on a drop. Often near local lows." : fr.v <= 0.00012 ? "Around the normal 0.01%: leverage is balanced." : "High: leveraged longs are crowded, which raises the risk of a sharp flush.") + ` Source: ${fr.src}.` });
+
+  const { score, groups } = finish(sig, GROUPS, pi >= 0.95 ? 20 : null);   // Pi Cycle Top near 1 caps the score
+
+  const low90 = Math.min(...a.daily.slice(-90).map(x => x.l));
+  const levels = [
+    { name: "Bull market support band", desc: "20-week SMA / 21-week EMA, bull-market dip zone", px: bLo, strength: 1, c: "--bmsb" },
+    { name: "200-day MA", desc: "Bull-market trend line", px: ma200d, strength: 1, c: "--ma200d" },
+    { name: "90-day low", desc: "Recent swing low", px: low90, strength: 1, c: "--z2" },
+    { name: "ATH −35%", desc: "Typical deep bull-market correction", px: ath * .65, strength: 2, c: "--z3" },
+    { name: "Mayer 0.8", desc: "0.8 × 200-day MA, reached only in deep dips", px: ma200d && ma200d * .8, strength: 2, c: "--z4" },
+    { name: "2-year MA", desc: "Classic accumulation line", px: ma2y, strength: 2, c: "--ma2y" },
+    { name: "Power-law fair value", desc: "Long-term growth trend since 2009", px: plFair, strength: 2, c: "--pl" },
+    { name: "AHR999 at 0.45", desc: "Top of the AHR999 bottom zone; every day below it since 2015 was higher a year later", px: gm200 && ahrFit && Math.sqrt(0.45 * gm200 * ahrFit), strength: 3, c: "--pl" },
+    { name: "Realized price", desc: "Average cost basis of all coins; price dipped below it only at major bottoms", px: rp, strength: 3, c: "--z5" },
+    { name: "ATH −60%", desc: "Bear-market territory", px: ath * .4, strength: 3, c: "--z4" },
+    { name: "200-week MA", desc: "Cycle floor, held in every bear market", px: ma200w, strength: 3, c: "--ma200w" },
+    { name: "Power-law floor", desc: `${PL_FLOOR} × power-law fair value, the corridor's historic floor`, px: plFair && plFair * PL_FLOOR, strength: 3, c: "--pl" }
+  ].filter(l => l.px > 0).sort((a, b) => b.px - a.px);
+  a.m = { ath, sig, score, groups, pi, fx, k: { dd, r200w, r2y, rsiW, ratioSc: null } };
+  a.levels = levels;
+}
+
+/* ---------- Ethereum and Solana model ---------- */
+// Backtest (2015–2026 for BTC, 2018–2026 for ETH): share of days higher one year later, and the median one-year change, per zone.
+const ZHIST = {
+  ETH: { "Generational buy": "83% of days in this zone were higher a year later (median +70%)", "Strong accumulate": "86% of days in this zone were higher a year later (median +61%)",
+         "Accumulate": "61% of days in this zone were higher a year later (median +44%)", "Fair value": "only 23% of days in this zone were higher a year later (median −24%)",
+         "Expensive": "only 15% of days in this zone were higher a year later (median −45%)", "Overheated": "35% of days in this zone were higher a year later (median −50%)" },
+  SOL: null
+};
+const ALT_GROUPS = [
+  { key: "val", name: "Valuation", desc: "Where price sits against long-term trend lines" },
+  { key: "chain", name: "On-chain", desc: "Holder cost basis and network usage" },
+  { key: "mkt", name: "Bitcoin link", desc: "Bitcoin's cycle and strength against Bitcoin" },
+  { key: "mom", name: "Momentum", desc: "RSI and MACD" },
+  { key: "sent", name: "Sentiment", desc: "Crowd mood and leverage" }
+];
+// Weekly MACD 12/26/9. `scored` = part of the score (Bitcoin); otherwise shown for information.
+function macdState(wc, p, scored) {
+  if (wc.length <= 40) return { disp: null, score: null, note: "Needs 35 weeks of data." };
+  const e12 = emaSeries(wc, 12), e26 = emaSeries(wc, 26), macd = e12.map((v, i) => v - e26[i]), sg = emaSeries(macd, 9), hist = macd.map((v, i) => v - sg[i]), n = hist.length;
+  const m = macd[n - 1], mp = m / p * 100, rising = hist[n - 1] > hist[n - 2];
+  const cross = hist[n - 1] > 0 && (hist[n - 2] <= 0 || hist[n - 3] <= 0), crossDown = hist[n - 1] < 0 && (hist[n - 2] >= 0 || hist[n - 3] >= 0);
+  const sc = m < 0 && rising ? 80 + Math.min(15, -mp * 1.5) : m < 0 ? 55 + Math.min(15, -mp) : rising ? 40 - Math.min(20, mp) : 25 - Math.min(20, mp);
+  const note = m < 0 && rising ? (cross ? "Fresh bullish crossover below zero: the classic bear-market-bottom confirmation." : "Below zero and turning up: selling momentum is fading.")
+    : m < 0 ? "Below zero and still falling: downtrend intact, bottom not confirmed yet." : rising ? "Above zero and rising: uptrend with momentum."
+    : crossDown ? "Fresh bearish crossover above zero: momentum rolling over." : "Above zero and fading: momentum weakening.";
+  return { disp: `${mp >= 0 ? "+" : "−"}${Math.abs(mp).toFixed(1)}% ${rising ? "▲" : "▼"}`, score: clamp(sc, 0, 100), note: note + " The value is MACD as a share of price; the arrow is the histogram's direction." + (scored ? "" : " Info only.") };
+}
+// Weighted score over the indicators that loaded, plus one sub-score per group. `cap` limits the total when set.
+function finish(sig, groupDefs, cap) {
+  let ws = 0, tw = 0;
+  for (const s of sig) { s.what = describe(s.name); if (s.score != null && s.w) { ws += s.score * s.w; tw += s.w; } }
+  let score = tw ? ws / tw : 50; if (cap != null) score = Math.min(score, cap);
+  const groups = groupDefs.map(g => { let x = 0, y = 0, tot = 0;
+    for (const s of sig) if (s.g === g.key && s.w) { tot += s.w; if (s.score != null) { x += s.score * s.w; y += s.w; } }
+    return { ...g, score: y ? x / y : null, weight: tot }; }).filter(g => sig.some(s => s.g === g.key));
+  return { score, groups };
+}
+function computeAlt(sym) {
+  const a = A[sym], p = a.spot, E = G.ext, isE = sym === "ETH", name = COINS[sym].name, fx = E.fx || null;
+  const dc = [...a.daily.slice(0, -1).map(x => x.c), p], wc = [...a.weekly.slice(0, -1).map(x => x.c), p];
+  const ma200d = sma(dc, 200), ma200w = sma(wc, 200), ma2y = sma(wc, 104);
+  const ath = Math.max(...a.weekly.map(x => x.h), ...a.daily.map(x => x.h), p);
+  const W = isE ? { r200w: .19, dd: .14, r2y: .11, slope: .03, mayer: .02, mvrv: .12, fees: .04, btc: .20, ratio: .04, rsiw: .01, fng: .05, fund: .05 }
+                : { r200w: .21, dd: .16, r2y: .12, slope: .04, mayer: .02, btc: .30, ratio: .04, rsiw: .01, fng: .05, fund: .05 };
+  const sig = [], add = o => sig.push(o), fmtR = v => v.toFixed(2) + "×";
+
+  /* valuation */
+  const r200w = ma200w ? p / ma200w : null;
+  add({ g: "val", name: "Price ÷ 200-week MA", w: W.r200w, disp: r200w && fmtR(r200w), score: pw(r200w, [[0.6, 100], [0.85, 85], [1.2, 60], [1.7, 35], [2.2, 15], [3.5, 0]]),
+    note: r200w == null ? "Needs 200 weeks of data." : r200w < 0.85 ? "Well below the 200-week MA: where past bear markets bottomed." : r200w < 1.2 ? "Near the 200-week MA: historically a value zone." : r200w < 1.7 ? "Mid-cycle." : r200w < 2.2 ? "High; the 2024 and 2025 ETH tops were around 2×." : "Far above the long-term average." });
+  const dd = (1 - p / ath) * 100;
+  add({ g: "val", name: "Drawdown from ATH", w: W.dd, disp: "−" + dd.toFixed(1) + "%", score: pw(dd, [[0, 5], [25, 30], [50, 60], [70, 88], [85, 100]]),
+    note: dd < 15 ? "Near the all-time high." : dd < 40 ? "Normal pullback for this coin." : dd < 65 ? "Deep correction." : "Bear-market depth. Past lows: ETH −79% to −94%, SOL −96%." });
+  const r2y = ma2y ? p / ma2y : null;
+  add({ g: "val", name: "Price ÷ 2-year MA", w: W.r2y, disp: r2y && fmtR(r2y), score: pw(r2y, [[0.5, 100], [0.75, 82], [1.1, 58], [1.6, 32], [2.2, 12], [3.5, 0]]),
+    note: r2y == null ? "Needs 2 years of data." : r2y < 0.75 ? "Far below the 2-year MA: deep-value territory." : r2y < 1.1 ? "Around or below the 2-year MA: accumulation zone." : r2y < 1.6 ? "Above it, not extended." : "Extended." });
+  const maW = smaSeries(wc, 200), sl = [];
+  for (let i = 251; i < wc.length; i++) if (maW[i - 52] != null) sl.push(maW[i] / maW[i - 52] - 1);
+  const slope = sl.length > 104 ? last(sl) : null, slopeSc = slope == null ? null : pctScore(sl.slice(-208, -1), slope);
+  add({ g: "val", name: "200-week MA slope", w: W.slope, disp: slope != null && `${slope >= 0 ? "+" : "−"}${Math.abs(slope * 100).toFixed(0)}%/yr`, score: slopeSc,
+    note: slope == null ? "Needs about 7 years of weekly data; not available for this coin yet." : `Growth of the 200-week MA over the past year. Slower than ${Math.round(slopeSc)}% of the last 4 years.` });
+  const mayer = ma200d ? p / ma200d : null;
+  add({ g: "val", name: "Mayer Multiple", w: W.mayer, disp: mayer && mayer.toFixed(2), score: pw(mayer, [[0.6, 100], [0.8, 85], [1, 60], [1.3, 35], [1.8, 10], [2.4, 0]]),
+    note: mayer == null ? "Needs 200 days of data." : mayer < 0.8 ? "Far below the 200-day trend." : mayer < 1 ? "Below the 200-day trend." : mayer < 1.3 ? "Normal range above trend." : "Stretched above trend." });
+
+  /* on-chain */
+  let rp = null;
+  if (isE) {
+    const cm = E.mvrvETH, mv = cm && cm.realizedUSD && fx ? (p / fx) / cm.realizedUSD : cm ? cm.mvrv : null;
+    rp = cm && cm.realizedUSD && fx ? cm.realizedUSD * fx : null;
+    add({ g: "chain", name: "MVRV ratio", w: W.mvrv, disp: mv && fmtR(mv), score: pw(mv, [[0.6, 100], [0.85, 85], [1.1, 62], [1.5, 32], [2, 10], [2.6, 0]]),
+      note: mv == null ? "Couldn't load (see data sources below)." : (rp ? `Price ÷ realized price (${fmtCur(rp)}), the average cost basis of all ETH. ` : "") + (mv < 1 ? "Below 1: the average holder is at a loss. Past ETH lows were at 0.3–0.8." : mv < 1.5 ? "Moderate." : "Elevated; the 2024 and 2025 tops were at 1.5–1.6.") });
+    const fr = E.feesETH ? E.feesETH.feeRatio : null;
+    add({ g: "chain", name: "Network fee income", w: W.fees, disp: fr != null && fmtR(fr), score: pw(fr, [[0.2, 100], [0.5, 75], [1, 50], [2, 25], [4, 0]]),
+      note: fr == null ? "Couldn't load (see data sources below)." : "Last 30 days against the 2-year average. " + (fr < 0.5 ? "Usage is depressed, which has marked cheap periods." : fr < 1.5 ? "Usage is normal." : "Usage is running hot, as near past peaks.") });
+  }
+  const tvl = E["tvl" + sym], bn = v => "$" + (v / 1e9).toFixed(1) + " bn";
+  add({ g: "chain", name: "Value locked in apps", w: 0, disp: tvl && bn(tvl.now), score: tvl ? pw(tvl.now / tvl.d365, [[0.5, 80], [1, 50], [2, 20]]) : null,
+    note: !tvl ? "Couldn't load (see data sources below)." : `Money deposited in ${name} apps, in USD. ${((tvl.now / tvl.d30 - 1) * 100).toFixed(0)}% over 30 days, ${((tvl.now / tvl.d365 - 1) * 100).toFixed(0)}% over a year. Info only: not backtested.` });
+
+  /* bitcoin link */
+  const bm = A.BTC.m, bs = bm ? bm.score : null;
+  add({ g: "mkt", name: "Bitcoin's score", w: W.btc, disp: bs != null && Math.round(bs) + " / 100", score: bs,
+    note: bs == null ? "Bitcoin data isn't loaded." : `${name} has historically followed Bitcoin's cycle, so Bitcoin's own buy score counts here. Bitcoin is in "${zoneFor(bs).name}".` });
+  let ratio = null, ratioSc = null;
+  if (A.BTC.weekly && A.BTC.weekly.length && A.BTC.spot) {
+    const bt = new Map(A.BTC.weekly.map(x => [Math.round(x.t / 864e5), x.c])), rs = [];
+    for (const x of a.weekly.slice(0, -1)) { const b = bt.get(Math.round(x.t / 864e5)); if (b) rs.push(x.c / b); }
+    ratio = p / A.BTC.spot; if (rs.length > 104) ratioSc = pctScore(rs.slice(-207), ratio);
+  }
+  add({ g: "mkt", name: `${sym}/BTC`, w: W.ratio, disp: ratio && ratio.toFixed(ratio < 0.01 ? 5 : 4) + " BTC", score: ratioSc,
+    note: ratioSc == null ? "Needs 2 years of weekly data for both coins." : `Lower than ${Math.round(ratioSc)}% of the last 4 years. ` + (ratioSc >= 70 ? `${name} is cheap against Bitcoin.` : ratioSc >= 35 ? "Mid-range against Bitcoin." : `${name} is expensive against Bitcoin.`) });
+
+  const dm = E.dom, dmChg = dm ? (dm.ago30 != null ? { v: dm.btc - dm.ago30, t: "over 30 days" } : dm.first ? { v: dm.btc - dm.first.v, t: "since " + dm.first.d } : null) : null;
+  add({ g: "mkt", name: "Bitcoin dominance", w: 0, disp: dm && dm.btc.toFixed(1) + "%", score: dmChg ? pw(dmChg.v, [[-4, 85], [0, 50], [4, 15]]) : null,
+    note: !dm ? "Couldn't load (see data sources below)." : `Bitcoin's share of all crypto market value.${dm[sym.toLowerCase()] ? ` ${name}'s share is ${dm[sym.toLowerCase()].toFixed(1)}%.` : ""} ` +
+      (dmChg ? `${dmChg.v >= 0 ? "Up" : "Down"} ${Math.abs(dmChg.v).toFixed(1)} points ${dmChg.t}. ` + (dmChg.v <= -1 ? "Falling dominance has tended to favour coins like this one." : dmChg.v >= 1 ? "Rising dominance means money is favouring Bitcoin over other coins." : "Roughly steady.") : "The trend will show here once this browser has a few days of readings.") + " Info only: not backtested." });
+
+  /* momentum */
+  const rsiW = last(rsiSeries(wc)), rsiD = last(rsiSeries(dc));
+  add({ g: "mom", name: "Weekly RSI (14)", w: W.rsiw, disp: rsiW != null && rsiW.toFixed(0), score: pw(rsiW, [[30, 100], [50, 55], [70, 15], [85, 0]]),
+    note: rsiW == null ? "Not enough data." : rsiW < 30 ? "Oversold on the weekly." : rsiW < 45 ? "Weak momentum." : rsiW < 70 ? "Neutral." : "Overbought." });
+  add({ g: "mom", name: "Weekly MACD (12, 26, 9)", w: 0, ...macdState(wc, p) });
+  add({ g: "mom", name: "Daily RSI (14)", w: 0, disp: rsiD != null && rsiD.toFixed(0), score: pw(rsiD, [[25, 100], [50, 50], [75, 0]]),
+    note: rsiD == null ? "Not enough data." : (rsiD < 30 ? "Short-term oversold." : rsiD < 70 ? "Short-term neutral." : "Short-term overbought.") + " Info only." });
+
+  /* sentiment */
+  const fg = E.fng;
+  add({ g: "sent", name: "Fear & Greed Index", w: W.fng, disp: fg && `${fg.v} · ${fg.cls}`, score: fg ? pw(fg.v, [[10, 100], [25, 85], [50, 50], [75, 15], [90, 0]]) : null,
+    note: !fg ? "Couldn't load (see data sources below)." : "Market-wide mood, driven mostly by Bitcoin. " + (fg.v < 25 ? "Extreme fear." : fg.v < 45 ? "Fear." : fg.v < 56 ? "Neutral." : fg.v < 75 ? "Greed." : "Extreme greed.") });
+  const fu = E["funding" + sym];
+  add({ g: "sent", name: "Perp funding rate (8h)", w: W.fund, disp: fu && `${(fu.v * 100).toFixed(4)}%`, score: fu ? pw(fu.v, [[-0.0003, 95], [-0.0001, 80], [0, 65], [0.0001, 45], [0.0003, 20], [0.0008, 0]]) : null,
+    note: !fu ? "Couldn't load (see data sources below)." : (fu.v < 0 ? "Negative: the crowd is betting on a drop. Often near local lows." : fu.v <= 0.00012 ? "Around the normal 0.01%: leverage is balanced." : "High: leveraged longs are crowded.") + ` Source: ${fu.src}.` });
+
+  const { score, groups } = finish(sig, ALT_GROUPS, null);
+  const sma20w = sma(wc, 20), ema21w = wc.length > 21 ? last(emaSeries(wc, 21)) : null, bLo = sma20w && ema21w ? Math.min(sma20w, ema21w) : null;
+  const low90 = Math.min(...a.daily.slice(-90).map(x => x.l));
+  a.levels = [
+    { name: "Bull market support band", desc: "20-week SMA / 21-week EMA, bull-market dip zone", px: bLo, strength: 1, c: "--bmsb" },
+    { name: "200-day MA", desc: "Trend line", px: ma200d, strength: 1, c: "--ma200d" },
+    { name: "90-day low", desc: "Recent swing low", px: low90, strength: 1, c: "--z2" },
+    { name: "ATH −50%", desc: "Deep correction; common for this coin even in bull markets", px: ath * .5, strength: 1, c: "--z3" },
+    { name: "2-year MA", desc: "Classic accumulation line", px: ma2y, strength: 2, c: "--ma2y" },
+    { name: "200-week MA", desc: "Long-term average; past bear markets went below it", px: ma200w, strength: 2, c: "--ma200w" },
+    { name: "Realized price", desc: "Average cost basis of all coins", px: rp, strength: 3, c: "--z5" },
+    { name: "ATH −70%", desc: "Bear-market territory", px: ath * .3, strength: 3, c: "--z4" },
+    { name: "0.7 × 200-week MA", desc: "Deep value: past bear-market lows were at 0.45–0.85× the 200-week MA", px: ma200w && ma200w * .7, strength: 3, c: "--ma200w" }
+  ].filter(l => l.px > 0).sort((x, y) => y.px - x.px);
+  a.m = { ath, sig, score, groups, pi: null, fx, k: { dd, r200w, r2y, rsiW, ratioSc } };
+}
+function computeAll() {
+  if (A.BTC.spot && A.BTC.cur === G.cur) computeBTC(A.BTC);
+  for (const s of ["ETH", "SOL"]) if (A[s].spot && A[s].cur === G.cur) computeAlt(s);
+}
+
+/* ---------- formatting ---------- */
+const fmtCur = (v, d) => v == null || !isFinite(v) ? "—" : new Intl.NumberFormat(undefined, { style: "currency", currency: G.cur, maximumFractionDigits: d ?? (v < 10 ? 4 : v < 1000 ? 2 : 0) }).format(v);
+const fmtInt = v => new Intl.NumberFormat().format(Math.round(v));
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const unitName = sym => sym === "BTC" ? "Sats" : sym;
+const qty = (sym, amt, px) => sym === "BTC" ? fmtInt(amt / px * SATS) : (amt / px).toFixed(sym === "ETH" ? 5 : 3);          // number only
+const qtyU = (sym, amt, px) => qty(sym, amt, px) + (sym === "BTC" ? " sats" : " " + sym);
+const chg24 = a => a.daily && a.daily.length > 1 ? (a.spot / a.daily[a.daily.length - 2].c - 1) * 100 : null;
+const chgHTML = ch => ch == null ? "" : `<span class="${ch >= 0 ? "up" : "down"}">${ch >= 0 ? "▲" : "▼"} ${Math.abs(ch).toFixed(2)}%</span>`;
+const nextLevel = a => a.levels ? a.levels.find(l => l.px < a.spot) : null;
+const ready = sym => !!(A[sym].m && A[sym].spot && A[sym].cur === G.cur);
+const zoneHist = (sym, z) => sym === "BTC" ? `Backtest 2015–2026: ${z.hist}.` : ZHIST[sym] ? `Backtest 2018–2026: ${ZHIST[sym][z.name]}.` : "Solana has too little history for a backtest; treat this score as a rough guide.";
+
+/* ---------- render: overview ---------- */
+function renderOverview() {
+  const have = SYMS.filter(ready);
+  let ws = 0, tw = 0; for (const s of have) { ws += A[s].m.score * BASE[s]; tw += BASE[s]; }
+  if (tw) {
+    const sc = ws / tw, z = zoneFor(sc);
+    $("ovZone").textContent = `${z.name} · ${Math.round(sc)}/100`; $("ovZone").style.color = `var(${z.c})`;
+    $("ovPin").style.left = clamp(sc, 0, 100) + "%";
+    const best = [...have].sort((x, y) => A[y].m.score - A[x].m.score)[0];
+    $("ovText").textContent = have.length < 3 ? `Based on ${have.join(", ")} only; the rest didn't load.` : `Cheapest by its own history right now: ${COINS[best].name} (${Math.round(A[best].m.score)}).`;
+  }
+  $("ovLines").innerHTML = SYMS.map(s => { if (!ready(s)) return `<div><span>${COINS[s].name}</span><span class="muted">not loaded</span></div>`;
+    const a = A[s], z = zoneFor(a.m.score); return `<div><span><strong>${COINS[s].name}</strong> <span class="num muted">${fmtCur(a.spot)}</span></span><span><span style="color:var(${z.c});font-weight:600">${z.name}</span> <span class="num">${Math.round(a.m.score)}</span> · buy <span class="num">${z.mult}</span></span></div>`; }).join("");
+
+  // regular-buy split
+  const amt = Math.max(0, +$("ovAmt").value || 0); let tot = 0;
+  $("ovSplit").innerHTML = SYMS.map(s => { if (!ready(s)) return `<tr><td>${s}</td><td class="r num">${BASE[s] * 100}%</td><td class="r muted" colspan="3">not loaded</td></tr>`;
+    const a = A[s], z = zoneFor(a.m.score), m = parseFloat(z.mult), buy = amt * BASE[s] * m; tot += buy;
+    return `<tr><td>${s}</td><td class="r num">${BASE[s] * 100}%</td><td class="r num" style="color:var(${z.c})">${z.mult}</td><td class="r num">${fmtCur(buy, 2)}</td><td class="r num">${buy ? qtyU(s, buy, a.spot) : "—"}</td></tr>`; }).join("");
+  $("ovSplitFoot").innerHTML = `<tr><td colspan="3"><strong>Total</strong> <span class="muted">(${amt ? (tot / amt).toFixed(2) : "0"}× your regular buy)</span></td><td class="r num"><strong>${fmtCur(tot, 2)}</strong></td><td></td></tr>`;
+
+  // cards
+  $("ovCards").innerHTML = SYMS.map(s => { const c = COINS[s], a = A[s];
+    if (!ready(s)) return `<a class="panel coin" href="#${s.toLowerCase()}"><div class="hd"><span class="nm"><span class="g">${c.glyph}</span>${c.name}</span></div><div class="muted">${G.srcState[s + " prices"] && !G.srcState[s + " prices"].ok ? "Couldn't load prices." : "Loading…"}</div></a>`;
+    const z = zoneFor(a.m.score), nl = nextLevel(a);
+    return `<a class="panel coin" href="#${s.toLowerCase()}" aria-label="Open ${c.name} details">
+      <div class="hd"><span class="nm"><span class="g">${c.glyph}</span>${c.name}</span><span class="chg">${chgHTML(chg24(a))}</span></div>
+      <div class="px num">${fmtCur(a.spot)}</div>
+      <canvas data-spark="${s}"></canvas>
+      <div class="sc"><b style="color:var(${z.c})">${Math.round(a.m.score)}</b><span class="zn" style="color:var(${z.c})">${z.name}</span><span class="muted">buy ${z.mult}</span></div>
+      <div class="groups" style="margin-top:0">${a.m.groups.filter(g => g.weight).map(g => { const zz = g.score == null ? null : zoneFor(g.score);
+        return `<div class="grp"><span>${g.name}</span><div class="bar"><i style="width:${g.score ?? 0}%;background:var(${zz ? zz.c : "--muted"})"></i></div><span class="num">${g.score == null ? "n/a" : Math.round(g.score)}</span></div>`; }).join("")}</div>
+      <div style="font-size:.85rem">${nl ? `Next buy level: <strong>${nl.name}</strong> at <span class="num">${fmtCur(nl.px)}</span> <span class="num muted">(${((nl.px / a.spot - 1) * 100).toFixed(1)}%)</span>` : "Price is below every level on the ladder."}</div>
+      <div class="conf">${c.conf}</div><div class="more">Open ${c.name} details →</div></a>`; }).join("");
+  document.querySelectorAll("canvas[data-spark]").forEach(cv => spark(cv, A[cv.dataset.spark]));
+
+  // side by side
+  const cell = (f) => SYMS.map(s => `<td class="r num">${ready(s) ? f(A[s], s) : "—"}</td>`).join("");
+  const R = [
+    ["Price", a => fmtCur(a.spot)], ["24 hours", a => chgHTML(chg24(a))],
+    ["Score", a => `<strong>${Math.round(a.m.score)}</strong>`], ["Zone", a => { const z = zoneFor(a.m.score); return `<span style="color:var(${z.c})">${z.name}</span>`; }],
+    ["Suggested buy size", a => zoneFor(a.m.score).mult],
+    ["Below all-time high", a => "−" + a.m.k.dd.toFixed(0) + "%"],
+    ["Price ÷ 200-week MA", a => a.m.k.r200w ? a.m.k.r200w.toFixed(2) + "×" : "n/a"],
+    ["Price ÷ 2-year MA", a => a.m.k.r2y ? a.m.k.r2y.toFixed(2) + "×" : "n/a"],
+    ["Weekly RSI", a => a.m.k.rsiW != null ? a.m.k.rsiW.toFixed(0) : "n/a"],
+    ["Cheapness against Bitcoin (4 years)", (a, s) => s === "BTC" ? "—" : a.m.k.ratioSc != null ? Math.round(a.m.k.ratioSc) + " / 100" : "n/a"],
+    ["Next buy level", a => { const nl = nextLevel(a); return nl ? `${nl.name}<br><span class="muted">${fmtCur(nl.px)} (${((nl.px / a.spot - 1) * 100).toFixed(1)}%)</span>` : "below all"; }],
+    ["Signals loaded", a => { const sc = a.m.sig.filter(x => x.w); return `${sc.filter(x => x.score != null).length} of ${sc.length}`; }],
+    ["Confidence", (a, s) => `<span style="font-family:var(--body);font-size:.8rem">${COINS[s].conf}</span>`]
+  ];
+  $("ovCmp").innerHTML = R.map(([n, f]) => `<tr><td>${n}</td>${cell(f)}</tr>`).join("");
+}
+function spark(cv, a) {
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight; if (!W || !a.daily) return;
+  cv.width = W * dpr; cv.height = H * dpr; const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = a.daily.slice(-180).map(x => x.c); v[v.length - 1] = a.spot; const lo = Math.min(...v), hi = Math.max(...v), acc = cssVar("--accent");
+  const x = i => i / (v.length - 1) * (W - 6) + 1, y = q => 3 + (hi - q) / (hi - lo || 1) * (H - 6);
+  ctx.beginPath(); v.forEach((q, i) => i ? ctx.lineTo(x(i), y(q)) : ctx.moveTo(x(i), y(q)));
+  ctx.strokeStyle = acc; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.lineTo(x(v.length - 1), H); ctx.lineTo(x(0), H); ctx.closePath(); const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, acc + "33"); g.addColorStop(1, acc + "00"); ctx.fillStyle = g; ctx.fill();
+  ctx.fillStyle = acc; ctx.beginPath(); ctx.arc(x(v.length - 1), y(a.spot), 3, 0, 7); ctx.fill();
+}
+
+/* ---------- render: detail ---------- */
+function renderDetail(sym) {
+  const a = A[sym], c = COINS[sym], p = a.spot, m = a.m;
+  document.querySelectorAll(".coinLbl").forEach(e => e.textContent = c.name);
+  document.querySelectorAll(".symLbl").forEach(e => e.textContent = sym);
+  document.querySelectorAll(".unitLbl").forEach(e => e.textContent = unitName(sym));
+  document.querySelectorAll(".btc-only").forEach(e => e.hidden = sym !== "BTC");
+  $("coinName").textContent = c.name; $("pairLbl").textContent = sym + "/" + G.cur;
+  if (!ready(sym)) { $("price").textContent = "—"; $("zoneName").textContent = "No data"; $("zoneName").style.color = ""; $("zoneText").textContent = `${c.name} prices haven't loaded.`;
+    for (const id of ["chg", "groups", "signals", "plan", "planFoot"]) $(id).innerHTML = ""; $("ladder").innerHTML = `<tr><td colspan="5" class="muted">Waiting for data…</td></tr>`; return; }
+  $("price").textContent = fmtCur(p);
+  $("chg").innerHTML = `${chgHTML(chg24(a))} <span class="muted">vs. yesterday's close</span>`;
+  $("f1Lbl").textContent = sym === "BTC" ? `Sats per 1 ${G.cur}` : `${sym} per 100 ${G.cur}`;
+  $("satsPerUnit").textContent = sym === "BTC" ? fmtInt(SATS / p) + " sats" : qtyU(sym, 100, p);
+  $("ath").textContent = fmtCur(m.ath);
+  if (sym === "BTC") { const day = Math.floor((Date.now() - LAST_HALVING) / 864e5), pct = Math.round((Date.now() - LAST_HALVING) / (NEXT_HALVING - LAST_HALVING) * 100);
+    $("f3Lbl").textContent = "Halving cycle"; $("cycle").textContent = `Day ${fmtInt(day)} · ${pct}%`; }
+  else { $("f3Lbl").textContent = "Price in Bitcoin"; $("cycle").textContent = A.BTC.spot && A.BTC.cur === G.cur ? (p / A.BTC.spot).toFixed(5) + " BTC" : "—"; }
+
+  const z = zoneFor(m.score), scored = m.sig.filter(s => s.w), have = scored.filter(s => s.score != null).length;
+  $("compLbl").textContent = `${have} of ${scored.length} indicators`;
+  $("zoneName").textContent = z.name; $("zoneName").style.color = `var(${z.c})`;
+  $("zoneText").textContent = `${sym === "BTC" ? z.text : z.text.replace("long-term cycle floors", "long-term averages")} ${zoneHist(sym, z)}`;
+  $("pin").style.left = clamp(m.score, 0, 100) + "%";
+  $("mult").textContent = z.mult; $("mult").style.setProperty("--zc", `var(${z.c})`);
+  $("score").textContent = Math.round(m.score);
+  $("groups").innerHTML = m.groups.filter(g => g.weight).map(g => { const zz = g.score == null ? null : zoneFor(g.score);
+    return `<div class="grp"><span>${g.name} <span class="muted">${Math.round(g.weight * 100)}%</span></span><div class="bar"><i style="width:${g.score ?? 0}%;background:var(${zz ? zz.c : "--muted"})"></i></div><span class="num">${g.score == null ? "n/a" : Math.round(g.score)}</span></div>`; }).join("");
+
+  const rows = []; let nowPlaced = false;
+  const nowRow = `<tr class="now"><td>▶ Price now</td><td class="r num">${fmtCur(p)}</td><td class="r num">—</td><td class="r num">${qty(sym, 100, p)}</td><td></td></tr>`;
+  for (const l of a.levels) {
+    if (!nowPlaced && l.px < p) { rows.push(nowRow); nowPlaced = true; }
+    const dist = (l.px / p - 1) * 100, passed = l.px >= p;
+    rows.push(`<tr class="${passed ? "passed" : ""}"><td><i class="swatch" style="background:var(${l.c})"></i>${l.name}<div class="desc">${l.desc}</div></td>
+      <td class="r num">${fmtCur(l.px)}</td><td class="r num">${dist >= 0 ? "+" : ""}${dist.toFixed(1)}%</td>
+      <td class="r num">${qty(sym, 100, l.px)}</td>
+      <td>${passed ? '<span class="tag" style="color:var(--muted)">below now</span>' : `<span class="tag" style="color:var(${["--z3", "--z3", "--z4", "--z5"][l.strength]})">${["", "Moderate", "Strong", "Very strong"][l.strength]}</span>`}</td></tr>`);
+  }
+  if (!nowPlaced) rows.push(nowRow);
+  $("ladder").innerHTML = rows.join("");
+
+  $("signals").innerHTML = m.groups.map(g => `<div class="sig-group">
+      <div class="gh"><h3>${g.name} <span class="muted" style="font-weight:400">· ${g.weight ? Math.round(g.weight * 100) + "% of score" : "info only"}</span></h3><span class="label">${g.desc}${g.weight ? " · group score " + (g.score == null ? "n/a" : Math.round(g.score)) : ""}</span></div>
+      <div class="signals">${m.sig.filter(s => s.g === g.key).map(s => {
+        const sc = s.score == null ? null : Math.round(s.score), zz = sc == null ? null : zoneFor(sc);
+        return `<div class="panel sig ${s.disp ? "" : "na"}"><div class="top"><span class="label">${esc(s.name)}</span><span class="label">${s.w ? "weight " + Math.round(s.w * 100) + "%" : "info only"}</span></div>
+          <div class="val">${s.disp ? esc(s.disp) : "n/a"}</div>
+          <div class="bar"><i style="width:${sc ?? 0}%;background:var(${zz ? zz.c : "--muted"})"></i></div>
+          <p class="read">${esc(s.note)}</p><p class="what">${esc(s.what)}</p></div>`; }).join("")}</div></div>`).join("");
+  renderPlan(); renderCalc(); renderAlerts(); drawChart();
+}
+const METHOD = {
+  overview: "<strong>How to read this.</strong> Each coin gets a score from 0 to 100, where 100 means historically very cheap, and a suggested size for your regular buy. The overall score weights the three coins 50 / 25 / 25. Bitcoin's and Ethereum's models were set from backtests on their real history; Solana's uses Ethereum's settings because its history is too short to test.",
+  BTC: "<strong>How the score works.</strong> 15 scored indicators in four groups: valuation 52%, on-chain 31%, sentiment 12%, momentum 5%. Weights were set from a backtest on daily data from 2015 to May 2026: indicators that predicted returns one to two years ahead got more weight. Daily RSI, RSI divergence, Stochastic RSI, the AHR999 index, the halving-cycle phase and Pi Cycle Top are shown for information; Pi Cycle Top caps the score at 20 when it is at 0.95 or above. The two sentiment indicators could not be backtested.",
+  ETH: "<strong>How the score works.</strong> 12 scored indicators: valuation 49%, Bitcoin link 24% (Bitcoin's own score 20%, ETH/BTC 4%), on-chain 16%, sentiment 10%, momentum 1%. Weights were set from a backtest on daily data from 2018 to May 2026, which covers about two and a half cycles, so they are less certain than Bitcoin's. The sentiment indicators and value locked could not be backtested.",
+  SOL: "<strong>How the score works.</strong> 10 scored indicators: valuation 55%, Bitcoin link 34% (Bitcoin's own score 30%, SOL/BTC 4%), sentiment 10%, momentum 1%. Solana has traded through only one full bear market, so these settings are borrowed from the Ethereum backtest and could not be tested on Solana itself. Events this model can't see have moved the price sharply before: scheduled token unlocks and network outages."
+};
+function renderSources() {
+  const ago = t => { const m = Math.round((Date.now() - t) / MIN); return m < 1 ? "just now" : m < 60 ? m + " min ago" : Math.round(m / 60) + " h ago"; };
+  const entries = [...SYMS.map(s => [s + " prices", G.srcState[s + " prices"]]), ...Object.values(EXTRAS).map(d => [d.label, G.srcState[d.label]])];
+  $("sources").innerHTML = entries.map(([n, s]) => !s ? `<li><span class="dot"></span>${esc(n)} · loading</li>`
+    : `<li class="${s.ok ? "ok" : "bad"}"><span class="dot"></span>${esc(n)} · ${s.ok ? (s.msg ? esc(s.msg) + ", " : "") + ago(s.at) : "failed: " + esc(s.msg)}</li>`).join("");
+}
+function render() {
+  const ov = G.view === "overview";
+  $("viewOverview").hidden = !ov; $("viewDetail").hidden = ov;
+  document.querySelectorAll("#tabs a").forEach(x => x.classList.toggle("on", x.dataset.v === G.view));
+  document.querySelectorAll(".curLbl").forEach(e => e.textContent = G.cur);
+  $("method").innerHTML = METHOD[G.view];
+  const pi = A.BTC.m && A.BTC.cur === G.cur ? A.BTC.m.pi : null, showPi = pi >= 0.95 && (ov || G.view === "BTC");
+  $("piWarn").hidden = !showPi;
+  if (showPi) $("piWarn").textContent = pi >= 1 ? "Bitcoin's Pi Cycle Top has crossed. In past cycles this happened within days of the top. Consider pausing extra buys." : `Bitcoin's Pi Cycle Top is close to crossing (${pi.toFixed(2)} of 1.00). Top risk is rising.`;
+  if (ov) renderOverview(); else renderDetail(G.view);
+  renderSources(); alertBanner();
+}
+
+function renderPlan() {
+  const sym = G.view, a = A[sym]; if (!a || !ready(sym)) return;
+  const p = a.spot, budget = Math.max(0, +$("budget").value || 0);
+  const below = a.levels.filter(l => l.px < p);
+  const nowShare = below.length ? clamp(a.m.score / 100 * .7, .1, .6) : 1;
+  const ws = below.map((_, i) => 1 + i * .6), wt = ws.reduce((x, y) => x + y, 0);
+  const orders = [{ name: "Market buy now", px: p, amt: budget * nowShare }, ...below.map((l, i) => ({ name: "Limit · " + l.name, px: l.px, amt: budget * (1 - nowShare) * ws[i] / wt }))];
+  let units = 0;
+  $("plan").innerHTML = orders.map(o => { units += o.amt / o.px;
+    return `<tr><td>${o.name}</td><td class="r num">${fmtCur(o.px)}</td><td class="r num">${fmtCur(o.amt, 2)}</td><td class="r num">${qty(sym, o.amt, o.px)}</td></tr>`; }).join("");
+  $("planFoot").innerHTML = `<tr><td><strong>If all orders fill</strong></td><td class="r num muted">avg ${units ? fmtCur(budget / units) : "—"}</td><td class="r num"><strong>${fmtCur(budget, 2)}</strong></td><td class="r num"><strong>${qty(sym, units, 1)}</strong></td></tr>
+    <tr><td class="muted" colspan="3">vs. buying everything now</td><td class="r num muted">${qty(sym, budget, p)}</td></tr>`;
+}
+function renderCalc() {
+  const sym = G.view, a = A[sym]; if (!a) return;
+  const amt = +$("calcAmt").value || 0, px = +$("calcPrice").value || a.spot; if (!px) return;
+  $("calcOut").textContent = qtyU(sym, amt, px); $("calcBtc").textContent = (amt / px).toFixed(8) + ` ${sym} @ ` + fmtCur(px);
+}
+
+/* alerts, stored per coin and currency */
+const alertKey = sym => `alerts:${sym}:${G.cur}`;
+function renderAlerts() {
+  const sym = G.view; if (!A[sym]) return;
+  const list = store.get(alertKey(sym), []), p = ready(sym) ? A[sym].spot : null;
+  $("alerts").innerHTML = list.length ? list.map((v, i) => `<li class="${p && p <= v ? "hit" : ""}"><span>${fmtCur(v)}${p && p <= v ? " · reached" : p ? ` · ${((v / p - 1) * 100).toFixed(1)}%` : ""}</span><button type="button" data-i="${i}" aria-label="Remove alert">Remove</button></li>`).join("")
+    : `<li class="muted" style="font-family:var(--body)">No alerts yet. Tip: add the ladder levels you care about.</li>`;
+}
+const notified = new Set();
+function alertBanner() {
+  const msgs = [];
+  for (const s of SYMS) { if (!ready(s)) continue; const p = A[s].spot, hits = store.get(alertKey(s), []).filter(v => p <= v); if (!hits.length) continue;
+    msgs.push(`${COINS[s].name} is at ${fmtCur(p)}, at or below your level${hits.length > 1 ? "s" : ""} ${hits.map(h => fmtCur(h)).join(", ")}`);
+    const fresh = hits.filter(h => !notified.has(s + G.cur + h)); fresh.forEach(h => notified.add(s + G.cur + h));
+    try { if (fresh.length && "Notification" in window && Notification.permission === "granted") new Notification(`${COINS[s].name} buy level reached`, { body: `${s} ${fmtCur(p)} ≤ ${fresh.map(h => fmtCur(h)).join(", ")}` }); } catch {} }
+  $("alertBanner").hidden = !msgs.length; if (msgs.length) $("alertBanner").textContent = "Alert: " + msgs.join(". ") + ".";
+}
+$("alertForm").addEventListener("submit", e => {
+  e.preventDefault(); const v = +$("alertPx").value, sym = G.view; if (!v || !A[sym]) return;
+  const list = store.get(alertKey(sym), []); list.push(v); list.sort((x, y) => y - x); store.set(alertKey(sym), list);
+  $("alertPx").value = ""; renderAlerts(); alertBanner();
+  try { if ("Notification" in window && Notification.permission === "default") Notification.requestPermission(); } catch {}
+});
+$("alerts").addEventListener("click", e => { const b = e.target.closest("button[data-i]"); if (!b || !A[G.view]) return;
+  const list = store.get(alertKey(G.view), []); list.splice(+b.dataset.i, 1); store.set(alertKey(G.view), list); renderAlerts(); alertBanner(); });
+
+/* ---------- chart ---------- */
+let chartGeom = null;
+function drawChart() {
+  const sym = G.view, a = A[sym]; if (!a || !ready(sym)) return;
+  const cv = $("chart"), box = cv.parentElement, dpr = window.devicePixelRatio || 1;
+  const W = box.clientWidth, H = box.clientHeight; if (!W) return; cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  const d = a.daily, closes = d.map(x => x.c); closes[closes.length - 1] = a.spot;
+  const ma200 = smaSeries(closes, 200);
+  const wc = a.weekly.map(x => x.c), w200 = smaSeries(wc, 200), w104 = smaSeries(wc, 104), w20 = smaSeries(wc, 20);
+  const mapW = ser => d.map(x => { let j = a.weekly.length - 1; while (j > 0 && a.weekly[j].t > x.t) j--; return ser[j]; });
+  const m200w = mapW(w200), m2y = mapW(w104), mb = mapW(w20);
+  const pl = sym === "BTC" && a.m.fx ? d.map(x => powerLawUSD(x.t) * a.m.fx) : d.map(() => null);
+  const inView = [...closes, ...m200w, ...m2y, ...ma200, ...mb, ...pl, ...a.levels.map(l => l.px)].filter(v => v > 0);
+  const lo = Math.min(...inView) * .9, hi = Math.max(...inView) * 1.05;
+  const L = Math.log, pad = { l: 8, r: 76, t: 28, b: 24 };
+  const x = i => pad.l + i / (d.length - 1) * (W - pad.l - pad.r);
+  const y = v => pad.t + (L(hi) - L(v)) / (L(hi) - L(lo)) * (H - pad.t - pad.b);
+  const muted = cssVar("--muted"), line = cssVar("--line");
+  ctx.font = "11px " + cssVar("--mono"); ctx.textBaseline = "middle";
+  const ticks = []; for (let e = Math.floor(Math.log10(lo)); e <= Math.ceil(Math.log10(hi)); e++) for (const k of [1, 2, 5]) { const v = k * 10 ** e; if (v >= lo && v <= hi) ticks.push(v); }
+  ctx.strokeStyle = line; ctx.lineWidth = 1; ctx.fillStyle = muted;
+  for (const v of ticks) { ctx.beginPath(); ctx.moveTo(pad.l, y(v)); ctx.lineTo(W - pad.r, y(v)); ctx.stroke(); ctx.fillText(fmtCur(v), W - pad.r + 6, y(v)); }
+  ctx.textBaseline = "alphabetic"; let lastY = null;
+  d.forEach((q, i) => { const yr = new Date(q.t).getUTCFullYear(); if (lastY !== null && yr !== lastY) { ctx.fillText(yr, x(i) + 3, H - 6); ctx.beginPath(); ctx.moveTo(x(i), pad.t); ctx.lineTo(x(i), H - pad.b); ctx.stroke(); } lastY = yr; });
+  ctx.setLineDash([4, 4]);
+  for (const l of a.levels) { ctx.strokeStyle = cssVar(l.c); ctx.globalAlpha = .5; ctx.beginPath(); ctx.moveTo(pad.l, y(l.px)); ctx.lineTo(W - pad.r, y(l.px)); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+  const plot = (ser, col, wdt, dash) => { ctx.setLineDash(dash || []); ctx.strokeStyle = col; ctx.lineWidth = wdt; ctx.beginPath(); let st = false;
+    ser.forEach((v, i) => { if (v == null) return; st ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v)); st = true; }); ctx.stroke(); ctx.setLineDash([]); };
+  plot(pl, cssVar("--pl"), 1.5, [1, 3]); plot(m200w, cssVar("--ma200w"), 2); plot(m2y, cssVar("--ma2y"), 1.5); plot(ma200, cssVar("--ma200d"), 1.5); plot(mb, cssVar("--bmsb"), 1.25);
+  const acc = cssVar("--accent"), g = ctx.createLinearGradient(0, pad.t, 0, H - pad.b);
+  g.addColorStop(0, acc + "40"); g.addColorStop(1, acc + "00");
+  ctx.beginPath(); closes.forEach((v, i) => i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v)));
+  ctx.lineTo(x(closes.length - 1), H - pad.b); ctx.lineTo(x(0), H - pad.b); ctx.closePath(); ctx.fillStyle = g; ctx.fill();
+  plot(closes, acc, 2);
+  ctx.fillStyle = acc; ctx.beginPath(); ctx.arc(x(closes.length - 1), y(a.spot), 4, 0, 7); ctx.fill();
+  chartGeom = { d, closes, ma200, m200w, m2y, pad, W };
+}
+$("chart").addEventListener("mousemove", e => {
+  if (!chartGeom) return; const g = chartGeom, r = e.target.getBoundingClientRect();
+  const i = Math.round((e.clientX - r.left - g.pad.l) / (g.W - g.pad.l - g.pad.r) * (g.d.length - 1));
+  if (i < 0 || i >= g.d.length) return;
+  $("readout").textContent = `${new Date(g.d[i].t).toISOString().slice(0, 10)}  price ${fmtCur(g.closes[i])}  200D ${fmtCur(g.ma200[i])}  2Y ${fmtCur(g.m2y[i])}  200W ${fmtCur(g.m200w[i])}`;
+});
+$("chart").addEventListener("mouseleave", () => $("readout").textContent = "");
+const redraw = () => { if (G.view === "overview") document.querySelectorAll("canvas[data-spark]").forEach(cv => spark(cv, A[cv.dataset.spark])); else drawChart(); };
+
+/* ---------- status & lifecycle ---------- */
+function setStatus(kind, msg) { const s = $("status"); s.className = "status " + kind; s.innerHTML = `<span class="dot"></span>${msg}`; }
+let loading = false;
+let lastFull = 0, lastTick = 0;
+async function fullLoad(force) {
+  if (loading) return; loading = true; lastFull = lastTick = Date.now();
+  const btn = $("refresh"); btn.disabled = true; btn.textContent = "Refreshing…";
+  const savedAt = Math.min(...SYMS.filter(s => A[s].saved && A[s].cur === G.cur).map(s => A[s].at));
+  setStatus("", isFinite(savedAt) ? `Showing saved data from ${new Date(savedAt).toLocaleString()} · refreshing…` : "Loading market data…");
+  const res = await Promise.allSettled(SYMS.map(loadCoin)), fails = res.filter(r => r.status === "rejected").map(r => r.reason.message || String(r.reason));
+  const okN = res.length - fails.length;
+  try {
+    if (okN) { computeAll(); render(); setStatus("live", `Live · ${okN} of 3 coins · loading on-chain data…`); await loadExtras(force === true); computeAll(); }
+    render();
+  } catch (e) { fails.push("display error: " + (e.message || e)); }
+  $("err").hidden = !fails.length;
+  if (fails.length) $("err").textContent = `Couldn't load: ${fails.join(" | ")}. ` + (okN ? "" : location.protocol !== "file:" ? "Check your internet connection. Saved data stays visible meanwhile, and the app refreshes when you are back online." : `"Blocked or offline" on every source means this browser view can't make web requests: open the downloaded file in Chrome, Firefox, Edge or Safari on a computer, not in a preview inside the Claude app, a mail app or a file viewer.`);
+  const stale = SYMS.filter(s => ready(s) && G.srcState[s + " prices"] && !G.srcState[s + " prices"].ok);
+  setStatus(okN ? "live" : "err", okN ? `Live · ${okN} of 3 coins · updated ${new Date().toLocaleTimeString()}` : stale.length ? "Offline · showing saved data" : "No data");
+  loading = false; btn.disabled = false; btn.textContent = okN === 3 ? "Updated ✓" : "Retry";
+  if (okN === 3) setTimeout(() => { if (!loading) btn.textContent = "Refresh"; }, 2000);
+}
+async function spotTick() {
+  if (loading) return; lastTick = Date.now();
+  const rs = await Promise.allSettled(SYMS.filter(s => A[s].spotFn && A[s].cur === G.cur).map(async s => { A[s].spot = await A[s].spotFn(); }));
+  if (loading || !rs.some(r => r.status === "fulfilled")) return;
+  try { computeAll(); render(); setStatus("live", `Live · updated ${new Date().toLocaleTimeString()}`); } catch {}
+}
+function route() { const h = location.hash.replace("#", "").toUpperCase(); G.view = COINS[h] ? h : "overview"; render(); window.scrollTo(0, 0); }
+window.addEventListener("hashchange", route);
+$("cur").value = G.cur;
+$("cur").addEventListener("change", e => { G.cur = e.target.value; store.set("cur", G.cur); fxMemo = {}; startView(); fullLoad(); });
+$("refresh").addEventListener("click", () => fullLoad(true));
+$("budget").value = store.get("budget", 1000);
+$("budget").addEventListener("input", () => { store.set("budget", $("budget").value); renderPlan(); });
+$("ovAmt").value = store.get("ovAmt", 200);
+$("ovAmt").addEventListener("input", () => { store.set("ovAmt", $("ovAmt").value); if (G.view === "overview") renderOverview(); });
+$("calcAmt").addEventListener("input", renderCalc); $("calcPrice").addEventListener("input", renderCalc);
+$("theme").addEventListener("click", () => {
+  const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === "dark" : !matchMedia("(prefers-color-scheme: light)").matches;
+  r.dataset.theme = dark ? "light" : "dark"; store.set("theme", r.dataset.theme); redraw();
+});
+const th = store.get("theme", null); if (th) document.documentElement.dataset.theme = th;
+const mq = matchMedia("(prefers-color-scheme: light)"); if (mq.addEventListener) mq.addEventListener("change", redraw);
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(redraw, 120); });
+// Draw whatever is saved for the current currency, then fetch live data.
+function startView() { try { if (hydrate()) computeAll(); } catch { for (const s of SYMS) A[s] = {}; } render(); }
+// Timers only work while the tab is visible; coming back to the tab catches up at once.
+const due = () => { if (document.hidden) return; if (Date.now() - lastFull >= 30 * MIN - 5000) fullLoad(false); else if (Date.now() - lastTick >= MIN - 5000) spotTick(); };   // 5 s of slack so a check landing just early still counts
+document.addEventListener("visibilitychange", due);
+setInterval(due, 15000);
+window.cryptoBuyLevels = { A, G };
+// Installed-app support: keep the page itself on the phone so it opens without a connection (only over https or localhost).
+if ("serviceWorker" in navigator && /^(https:|http:\/\/localhost|http:\/\/127\.)/.test(location.href)) navigator.serviceWorker.register("sw.js").catch(() => {});
+{ const h = location.hash.replace("#", "").toUpperCase(); G.view = COINS[h] ? h : "overview"; }
+startView();
+fullLoad();
+})();
+</script>
+</body>
+</html>
