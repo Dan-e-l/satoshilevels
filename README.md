@@ -13,10 +13,13 @@ A small phone web app that shows how cheap or expensive Bitcoin, Ethereum and So
 
 Prices can be shown in USD or CHF, in dark or light mode.
 
-## Install on an iPhone
+## Install on your phone
 
-1. Open the link above in Safari.
-2. Tap the Share button, then "Add to Home Screen".
+Open https://dan-e-l.github.io/satoshilevels/ in your phone's browser and add it to the home screen. It then opens full screen like a normal app.
+
+**Android (Chrome):** tap the ⋮ menu, then **Install app** (or **Add to Home screen**).
+
+**iPhone (Safari):** tap the Share button, then **Add to Home Screen**.
 
 The app then opens full screen from its own icon and keeps the last data available offline.
 
