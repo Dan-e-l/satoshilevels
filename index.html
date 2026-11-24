@@ -162,6 +162,9 @@ details[open] > summary .chev { transform: rotate(180deg) }
 #rng span { padding: 9px 9px }
 #rng { display: inline-flex; align-items: center; gap: 2px; padding: 0 3px; font-size: 13px; font-weight: 600; line-height: 1; margin-left: auto }
 #secChart .sec-head { align-items: center } #secChart .sec-head p { flex: 1 1 100% }
+#cmode { flex: 1 1 100%; display: flex; gap: 2px; padding: 3px; font-size: 13px; font-weight: 600; line-height: 1 }
+#cmode span { flex: 1; text-align: center; padding: 8px 6px }
+.legend .znote { flex: 1 1 100%; margin: 2px 0 0; font-size: inherit }
 .legend .sm { display: none }
 .seg span.on { background: var(--accent-soft); color: var(--accent) }
 .controls .info-btn { font-weight: 700; color: var(--muted) }
@@ -456,9 +459,18 @@ a.coin:hover { border-color: var(--accent) }
   </section>
 
   <section class="panel" id="secChart">
-    <div class="sec-head"><h2>Price vs. support lines</h2><button type="button" id="rng" class="seg"><span data-r="3M">3M</span><span data-r="6M">6M</span><span data-r="1Y">1Y</span><span data-r="2Y">2Y</span><span data-r="4Y">4Y</span></button><p><span class="d-only">Daily close, log scale. </span>Dashed lines are the <span class="ph-only">nearest </span>ladder levels.</p></div>
+    <div class="sec-head"><h2 id="chartTitle">Price vs. support lines</h2><button type="button" id="rng" class="seg"><span data-r="3M">3M</span><span data-r="6M">6M</span><span data-r="1Y">1Y</span><span data-r="2Y">2Y</span><span data-r="4Y">4Y</span></button><button type="button" id="cmode" class="seg"><span data-m="lines">Support lines</span><span data-m="zones">Score zones</span></button><p id="pLines"><span class="d-only">Daily close, log scale. </span>Dashed lines are the <span class="ph-only">nearest </span>ladder levels.</p><p id="pZones" hidden><span class="d-only">Log scale. </span>The coloured bands show which score zone each price was in on that day. The labels on the right are today's zone boundaries.</p></div>
     <div class="chart-box"><canvas id="chart"></canvas><div class="readout" id="readout"></div></div>
-    <div class="legend">
+    <div class="legend" id="lgZones" hidden>
+      <span><i class="swatch" style="background:var(--z5)"></i><span class="lg">Generational buy</span><span class="sm">Gen. buy</span></span>
+      <span><i class="swatch" style="background:var(--z4)"></i><span class="lg">Strong accumulate</span><span class="sm">Strong acc.</span></span>
+      <span><i class="swatch" style="background:var(--z3)"></i><span class="lg">Accumulate</span><span class="sm">Accum.</span></span>
+      <span><i class="swatch" style="background:var(--z2)"></i><span class="lg">Fair value</span><span class="sm">Fair</span></span>
+      <span><i class="swatch" style="background:var(--z1)"></i><span class="lg">Expensive</span><span class="sm">Expens.</span></span>
+      <span><i class="swatch" style="background:var(--z0)"></i><span class="lg">Overheated</span><span class="sm">Hot</span></span>
+      <p class="znote" id="zNote"></p>
+    </div>
+    <div class="legend" id="lgLines">
       <span><i class="swatch" style="background:var(--accent)"></i>Price</span>
       <span><i class="swatch" style="background:var(--bmsb)"></i><span class="lg">Bull market support band</span><span class="sm">Support band</span></span>
       <span><i class="swatch" style="background:var(--ma200d)"></i><span class="lg">200-day MA</span><span class="sm">200D</span></span>
@@ -761,6 +773,17 @@ const ZONES = [
   { min: -1, name: "Overheated", mult: "0×", sell: "5%", c: "--z0", text: "Far above every support line. Historically near cycle tops; stop buying and consider taking profit.", hist: "47% of days in this zone were higher a year later (median −9%)" }
 ];
 const zoneFor = s => ZONES.find(z => s >= z.min);
+// Score curves of the price-based indicators, shared by the live model and the score-zone history in the chart
+const PB = {
+  mayer: [[0.6, 100], [0.8, 85], [1, 60], [1.3, 35], [1.8, 10], [2.4, 0]], rsiw: [[30, 100], [50, 55], [70, 15], [85, 0]],
+  btc: { r200w: [[1, 100], [1.3, 75], [2, 40], [2.5, 20], [3.5, 0]], r2y: [[0.7, 100], [1, 80], [1.6, 40], [2.2, 15], [3, 0]],
+         pl: [[0.45, 100], [0.6, 85], [0.85, 55], [1.15, 25], [1.8, 5], [2.5, 0]], dd: [[0, 5], [20, 40], [40, 70], [60, 95], [75, 100]],
+         bmsb: [[0.8, 90], [1, 70], [1.1, 50], [1.4, 25], [2, 0]] },
+  alt: { r200w: [[0.6, 100], [0.85, 85], [1.2, 60], [1.7, 35], [2.2, 15], [3.5, 0]], dd: [[0, 5], [25, 30], [50, 60], [70, 88], [85, 100]],
+         r2y: [[0.5, 100], [0.75, 82], [1.1, 58], [1.6, 32], [2.2, 12], [3.5, 0]] }
+};
+const ALTW = { ETH: { r200w: .19, dd: .14, r2y: .11, slope: .03, mayer: .02, mvrv: .12, fees: .04, btc: .20, ratio: .04, rsiw: .01, fng: .05, fund: .05 },
+               SOL: { r200w: .21, dd: .16, r2y: .12, slope: .04, mayer: .02, btc: .30, ratio: .04, rsiw: .01, fng: .05, fund: .05 } };
 const GROUPS = [
   { key: "val", name: "Valuation", desc: "Where price sits against long-term trend lines" },
   { key: "mom", name: "Momentum", desc: "Is the trend turning? RSI and MACD" },
@@ -813,16 +836,16 @@ function computeBTC(a) {
 
   /* --- Valuation --- */
   const mayer = ma200d ? p / ma200d : null;
-  add({ g: "val", name: "Mayer Multiple", w: .04, disp: mayer && mayer.toFixed(2), score: pw(mayer, [[0.6, 100], [0.8, 85], [1, 60], [1.3, 35], [1.8, 10], [2.4, 0]]),
+  add({ g: "val", name: "Mayer Multiple", w: .04, disp: mayer && mayer.toFixed(2), score: pw(mayer, PB.mayer),
     note: mayer == null ? "Needs 200 days of data." : mayer < 0.8 ? "Below 0.8: deep value, rare." : mayer < 1 ? "Below the 200-day trend." : mayer < 1.3 ? "Normal range above trend." : mayer < 1.8 ? "Stretched above trend; the 2024 and 2025 highs were at 1.2–1.8." : "Above 1.8: top zone in recent cycles." });
   const r200w = ma200w ? p / ma200w : null;
-  add({ g: "val", name: "Price ÷ 200-week MA", w: .14, disp: r200w && fmtR(r200w), score: pw(r200w, [[1, 100], [1.3, 75], [2, 40], [2.5, 20], [3.5, 0]]),
+  add({ g: "val", name: "Price ÷ 200-week MA", w: .14, disp: r200w && fmtR(r200w), score: pw(r200w, PB.btc.r200w),
     note: r200w == null ? "Needs 200 weeks of data." : r200w <= 1 ? "At the cycle floor. Every past bear market bottomed here." : r200w < 1.3 ? "Close to the cycle floor." : r200w < 2 ? "Mid-cycle." : r200w < 2.5 ? "High; the 2024 and 2025 tops were at 2.2–2.4×." : "Far above the floor." });
   const r2y = ma2y ? p / ma2y : null;
-  add({ g: "val", name: "Price ÷ 2-year MA", w: .07, disp: r2y && fmtR(r2y), score: pw(r2y, [[0.7, 100], [1, 80], [1.6, 40], [2.2, 15], [3, 0]]),
+  add({ g: "val", name: "Price ÷ 2-year MA", w: .07, disp: r2y && fmtR(r2y), score: pw(r2y, PB.btc.r2y),
     note: r2y == null ? "Needs 2 years of data." : r2y < 1 ? "Below the 2-year MA: a classic accumulation zone." : r2y < 1.6 ? "Above it, but not extended." : r2y < 2.2 ? "Extended; recent tops were at 1.6–2.4×." : "Top zone." });
   const plFair = fx ? powerLawUSD(Date.now()) * fx : null, rPl = plFair ? p / plFair : null;
-  add({ g: "val", name: "Power-law corridor", w: .13, disp: rPl && fmtR(rPl), score: pw(rPl, [[0.45, 100], [0.6, 85], [0.85, 55], [1.15, 25], [1.8, 5], [2.5, 0]]),
+  add({ g: "val", name: "Power-law corridor", w: .13, disp: rPl && fmtR(rPl), score: pw(rPl, PB.btc.pl),
     note: rPl == null ? "Needs an exchange rate to convert the USD model." : `Fair value ${fmtCur(plFair)}. ` + (rPl < 0.6 ? "Near the long-term floor of the corridor (past bear-market lows: 0.43–0.60×)." : rPl < 0.85 ? "Below the long-term fair-value line." : rPl < 1.15 ? "Around fair value; the 2024 and 2025 tops were at 1.1–1.2×." : "Above fair value.") });
   // AHR999: (price / 200-day geometric mean) x (price / long-term growth curve). Info only: it overlaps with the model.
   const gm200 = dc.length >= 200 ? Math.exp(dc.slice(-200).reduce((x, v) => x + Math.log(v), 0) / 200) : null;
@@ -831,11 +854,11 @@ function computeBTC(a) {
   add({ g: "val", name: "AHR999 index", w: 0, disp: ahr && ahr.toFixed(2), score: pw(ahr, [[0.3, 100], [0.45, 88], [0.8, 62], [1.2, 40], [2, 18], [4, 0]]),
     note: ahr == null ? "Needs 200 days of data and an exchange rate." : (ahr < 0.45 ? "Below 0.45, the index's bottom zone: every such day since 2015 was higher a year later. The five major lows were all at 0.23–0.28." : ahr < 1.2 ? "Between 0.45 and 1.2, the regular-buying zone: 89% of such days were higher a year later." : "Above 1.2: only 41% of such days were higher a year later.") + " Info only: it measures almost the same thing as the score." });
   const dd = (1 - p / ath) * 100;
-  add({ g: "val", name: "Drawdown from ATH", w: .07, disp: "−" + dd.toFixed(1) + "%", score: pw(dd, [[0, 5], [20, 40], [40, 70], [60, 95], [75, 100]]),
+  add({ g: "val", name: "Drawdown from ATH", w: .07, disp: "−" + dd.toFixed(1) + "%", score: pw(dd, PB.btc.dd),
     note: dd < 10 ? "Near the all-time high." : dd < 30 ? "Normal bull-market pullback." : dd < 50 ? "Deep correction." : "Bear-market depth (past bottoms: −75% to −85%)." });
   const sma20w = sma(wc, 20), ema21w = wc.length > 21 ? last(emaSeries(wc, 21)) : null;
   const bLo = sma20w && ema21w ? Math.min(sma20w, ema21w) : null, bHi = bLo ? Math.max(sma20w, ema21w) : null, rB = bLo ? p / bLo : null;
-  add({ g: "val", name: "Bull market support band", w: .02, disp: rB && fmtR(rB), score: pw(rB, [[0.8, 90], [1, 70], [1.1, 50], [1.4, 25], [2, 0]]),
+  add({ g: "val", name: "Bull market support band", w: .02, disp: rB && fmtR(rB), score: pw(rB, PB.btc.bmsb),
     note: rB == null ? "Needs 21 weeks of data." : `Band ${fmtCur(bLo)}–${fmtCur(bHi)}. ` + (rB < 1 ? "Below the band: a dip-buy zone in bull markets, resistance in bear markets." : rB < 1.15 ? "Sitting on the band: a common bull-market bounce zone." : "Well above the band.") });
   const ma111 = sma(dc, 111), ma350 = sma(dc, 350), pi = ma111 && ma350 ? ma111 / (2 * ma350) : null;
   add({ g: "val", name: "Pi Cycle Top", w: 0, disp: pi && pi.toFixed(2), score: pw(pi, [[0.6, 65], [0.8, 45], [0.9, 25], [1, 0]]),
@@ -852,7 +875,7 @@ function computeBTC(a) {
 
   /* --- Momentum --- */
   const rsiW = last(rsiSeries(wc)), rsiDser = rsiSeries(dc), rsiD = last(rsiDser);
-  add({ g: "mom", name: "Weekly RSI (14)", w: .03, disp: rsiW != null && rsiW.toFixed(0), score: pw(rsiW, [[30, 100], [50, 55], [70, 15], [85, 0]]),
+  add({ g: "mom", name: "Weekly RSI (14)", w: .03, disp: rsiW != null && rsiW.toFixed(0), score: pw(rsiW, PB.rsiw),
     note: rsiW == null ? "Not enough data." : rsiW < 30 ? "Oversold on the weekly. Rare and historically a strong entry." : rsiW < 45 ? "Weak momentum." : rsiW < 70 ? "Neutral." : "Overbought." });
   add({ g: "mom", name: "Daily RSI (14)", w: 0, disp: rsiD != null && rsiD.toFixed(0), score: pw(rsiD, [[25, 100], [50, 50], [75, 0]]),
     note: rsiD == null ? "Not enough data." : (rsiD < 30 ? "Short-term oversold." : rsiD < 70 ? "Short-term neutral." : "Short-term overbought.") + " Info only: in the backtest it did not predict the next weeks." });
@@ -954,16 +977,16 @@ const ALT_GROUPS = [
   { key: "sent", name: "Sentiment", desc: "Crowd mood and leverage" }
 ];
 // Weekly MACD 12/26/9. `scored` = part of the score (Bitcoin); otherwise shown for information.
+const macdSc = (m, mp, rising) => clamp(m < 0 && rising ? 80 + Math.min(15, -mp * 1.5) : m < 0 ? 55 + Math.min(15, -mp) : rising ? 40 - Math.min(20, mp) : 25 - Math.min(20, mp), 0, 100);
 function macdState(wc, p, scored) {
   if (wc.length <= 40) return { disp: null, score: null, note: "Needs 35 weeks of data." };
   const e12 = emaSeries(wc, 12), e26 = emaSeries(wc, 26), macd = e12.map((v, i) => v - e26[i]), sg = emaSeries(macd, 9), hist = macd.map((v, i) => v - sg[i]), n = hist.length;
   const m = macd[n - 1], mp = m / p * 100, rising = hist[n - 1] > hist[n - 2];
   const cross = hist[n - 1] > 0 && (hist[n - 2] <= 0 || hist[n - 3] <= 0), crossDown = hist[n - 1] < 0 && (hist[n - 2] >= 0 || hist[n - 3] >= 0);
-  const sc = m < 0 && rising ? 80 + Math.min(15, -mp * 1.5) : m < 0 ? 55 + Math.min(15, -mp) : rising ? 40 - Math.min(20, mp) : 25 - Math.min(20, mp);
   const note = m < 0 && rising ? (cross ? "Fresh bullish crossover below zero: the classic bear-market-bottom confirmation." : "Below zero and turning up: selling momentum is fading.")
     : m < 0 ? "Below zero and still falling: downtrend intact, bottom not confirmed yet." : rising ? "Above zero and rising: uptrend with momentum."
     : crossDown ? "Fresh bearish crossover above zero: momentum rolling over." : "Above zero and fading: momentum weakening.";
-  return { disp: `${mp >= 0 ? "+" : "−"}${Math.abs(mp).toFixed(1)}% ${rising ? "▲" : "▼"}`, score: clamp(sc, 0, 100), note: note + " The value is MACD as a share of price; the arrow is the histogram's direction." + (scored ? "" : " Info only.") };
+  return { disp: `${mp >= 0 ? "+" : "−"}${Math.abs(mp).toFixed(1)}% ${rising ? "▲" : "▼"}`, score: macdSc(m, mp, rising), note: note + " The value is MACD as a share of price; the arrow is the histogram's direction." + (scored ? "" : " Info only.") };
 }
 // Weighted score over the indicators that loaded, plus one sub-score per group. `cap` limits the total when set.
 function finish(sig, groupDefs, cap) {
@@ -980,19 +1003,18 @@ function computeAlt(sym) {
   const dc = [...a.daily.slice(0, -1).map(x => x.c), p], wc = [...a.weekly.slice(0, -1).map(x => x.c), p];
   const ma200d = sma(dc, 200), ma200w = sma(wc, 200), ma2y = sma(wc, 104);
   const ath = Math.max(...a.weekly.map(x => x.h), ...a.daily.map(x => x.h), p);
-  const W = isE ? { r200w: .19, dd: .14, r2y: .11, slope: .03, mayer: .02, mvrv: .12, fees: .04, btc: .20, ratio: .04, rsiw: .01, fng: .05, fund: .05 }
-                : { r200w: .21, dd: .16, r2y: .12, slope: .04, mayer: .02, btc: .30, ratio: .04, rsiw: .01, fng: .05, fund: .05 };
+  const W = ALTW[sym];
   const sig = [], add = o => sig.push(o), fmtR = v => v.toFixed(2) + "×";
 
   /* valuation */
   const r200w = ma200w ? p / ma200w : null;
-  add({ g: "val", name: "Price ÷ 200-week MA", w: W.r200w, disp: r200w && fmtR(r200w), score: pw(r200w, [[0.6, 100], [0.85, 85], [1.2, 60], [1.7, 35], [2.2, 15], [3.5, 0]]),
+  add({ g: "val", name: "Price ÷ 200-week MA", w: W.r200w, disp: r200w && fmtR(r200w), score: pw(r200w, PB.alt.r200w),
     note: r200w == null ? "Needs 200 weeks of data." : r200w < 0.85 ? "Well below the 200-week MA: where past bear markets bottomed." : r200w < 1.2 ? "Near the 200-week MA: historically a value zone." : r200w < 1.7 ? "Mid-cycle." : r200w < 2.2 ? "High; the 2024 and 2025 ETH tops were around 2×." : "Far above the long-term average." });
   const dd = (1 - p / ath) * 100;
-  add({ g: "val", name: "Drawdown from ATH", w: W.dd, disp: "−" + dd.toFixed(1) + "%", score: pw(dd, [[0, 5], [25, 30], [50, 60], [70, 88], [85, 100]]),
+  add({ g: "val", name: "Drawdown from ATH", w: W.dd, disp: "−" + dd.toFixed(1) + "%", score: pw(dd, PB.alt.dd),
     note: dd < 15 ? "Near the all-time high." : dd < 40 ? "Normal pullback for this coin." : dd < 65 ? "Deep correction." : "Bear-market depth. Past lows: ETH −79% to −94%, SOL −96%." });
   const r2y = ma2y ? p / ma2y : null;
-  add({ g: "val", name: "Price ÷ 2-year MA", w: W.r2y, disp: r2y && fmtR(r2y), score: pw(r2y, [[0.5, 100], [0.75, 82], [1.1, 58], [1.6, 32], [2.2, 12], [3.5, 0]]),
+  add({ g: "val", name: "Price ÷ 2-year MA", w: W.r2y, disp: r2y && fmtR(r2y), score: pw(r2y, PB.alt.r2y),
     note: r2y == null ? "Needs 2 years of data." : r2y < 0.75 ? "Far below the 2-year MA: deep-value territory." : r2y < 1.1 ? "Around or below the 2-year MA: accumulation zone." : r2y < 1.6 ? "Above it, not extended." : "Extended." });
   const maW = smaSeries(wc, 200), sl = [];
   for (let i = 251; i < wc.length; i++) if (maW[i - 52] != null) sl.push(maW[i] / maW[i - 52] - 1);
@@ -1000,7 +1022,7 @@ function computeAlt(sym) {
   add({ g: "val", name: "200-week MA slope", w: W.slope, disp: slope != null && `${slope >= 0 ? "+" : "−"}${Math.abs(slope * 100).toFixed(0)}%/yr`, score: slopeSc,
     note: slope == null ? "Needs about 7 years of weekly data; not available for this coin yet." : `Growth of the 200-week MA over the past year. Slower than ${Math.round(slopeSc)}% of the last 4 years.` });
   const mayer = ma200d ? p / ma200d : null;
-  add({ g: "val", name: "Mayer Multiple", w: W.mayer, disp: mayer && mayer.toFixed(2), score: pw(mayer, [[0.6, 100], [0.8, 85], [1, 60], [1.3, 35], [1.8, 10], [2.4, 0]]),
+  add({ g: "val", name: "Mayer Multiple", w: W.mayer, disp: mayer && mayer.toFixed(2), score: pw(mayer, PB.mayer),
     note: mayer == null ? "Needs 200 days of data." : mayer < 0.8 ? "Far below the 200-day trend." : mayer < 1 ? "Below the 200-day trend." : mayer < 1.3 ? "Normal range above trend." : "Stretched above trend." });
 
   /* on-chain */
@@ -1038,7 +1060,7 @@ function computeAlt(sym) {
 
   /* momentum */
   const rsiW = last(rsiSeries(wc)), rsiD = last(rsiSeries(dc));
-  add({ g: "mom", name: "Weekly RSI (14)", w: W.rsiw, disp: rsiW != null && rsiW.toFixed(0), score: pw(rsiW, [[30, 100], [50, 55], [70, 15], [85, 0]]),
+  add({ g: "mom", name: "Weekly RSI (14)", w: W.rsiw, disp: rsiW != null && rsiW.toFixed(0), score: pw(rsiW, PB.rsiw),
     note: rsiW == null ? "Not enough data." : rsiW < 30 ? "Oversold on the weekly." : rsiW < 45 ? "Weak momentum." : rsiW < 70 ? "Neutral." : "Overbought." });
   add({ g: "mom", name: "Weekly MACD (12, 26, 9)", w: 0, ...macdState(wc, p) });
   add({ g: "mom", name: "Daily RSI (14)", w: 0, disp: rsiD != null && rsiD.toFixed(0), score: pw(rsiD, [[25, 100], [50, 50], [75, 0]]),
@@ -1290,6 +1312,72 @@ function renderNews() {
   $("news").hidden = !lines.length;
   $("news").innerHTML = lines.length ? `<div class="nh"><span>Since your last visit</span><button type="button" id="newsOk">Got it</button></div>${lines.join("")}` : "";
 }
+/* ---------- score-zone history ----------
+   For every past day: the prices at which the score would have crossed each zone boundary (85, 70, 55, 35, 20).
+   Only the price-based indicators have a history here (moving averages, power law, drawdown, momentum; for ETH and SOL
+   also Bitcoin's score and the ratio to Bitcoin), so these lines come from that part of the score, re-weighted.
+   For each day the score falls as the price rises, so each boundary is found by bisection on the price. */
+const idxAt = (arr, t) => { let lo = 0, hi = arr.length - 1, r = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (arr[m].t <= t) { r = m; lo = m + 1; } else hi = m - 1; } return r; };
+const zCtx = {}, zMemo = {};
+function zctx(sym) {
+  const a = A[sym], W = a.weekly, D = a.daily, key = [G.cur, W.length, last(W).t, D.length, last(D).t, a.spot, sym !== "BTC" && A.BTC.spot].join("|");
+  if (zCtx[sym] && zCtx[sym].key === key) return zCtx[sym];
+  const wc = W.map(x => x.c), dc = D.map(x => x.c); wc[wc.length - 1] = a.spot; dc[dc.length - 1] = a.spot;
+  // daily averages: weeks before the daily history starts count as 7 days at that week's close, so long averages exist from day one
+  const pre = []; for (const x of W) if (x.t + 7 * 864e5 <= D[0].t) for (let q = 0; q < 7; q++) pre.push(x.c);
+  const ext = [...pre, ...dc], dma = n => smaSeries(ext, n).slice(pre.length);
+  const w200 = smaSeries(wc, 200), e12 = emaSeries(wc, 12), e26 = emaSeries(wc, 26), mac = e12.map((v, i) => v - e26[i]), sg = emaSeries(mac, 9), hs = mac.map((v, i) => v - sg[i]);
+  const sl = wc.map((_, j) => j >= 251 && w200[j - 52] != null ? w200[j] / w200[j - 52] - 1 : null);
+  const c = { key, w200, w104: smaSeries(wc, 104), w20: smaSeries(wc, 20), e21: emaSeries(wc, 21), w29: smaSeries(wc, 29), w16: smaSeries(wc, 16), w50: smaSeries(wc, 50),
+    d200: dma(200), d111: dma(111), d350: dma(350), rsi: rsiSeries(wc),
+    macd: wc.map((v, j) => j > 40 ? macdSc(mac[j], mac[j] / v * 100, hs[j] > hs[j - 1]) : null),
+    slope: sl.map((v, j) => { if (v == null) return null; const pr = sl.slice(Math.max(0, j - 207), j).filter(x => x != null); return pr.length > 104 ? pctScore(pr, v) : null; }),
+    wAth: [], dPrev: [] };
+  let m = 0; for (const x of W) { c.wAth.push(m); m = Math.max(m, x.h); }
+  m = 0; for (const x of D) { c.dPrev.push(m); m = Math.max(m, x.h); }
+  if (sym !== "BTC" && A.BTC.weekly) { const bt = new Map(A.BTC.weekly.map(x => [Math.round(x.t / 864e5), x.c])); c.rs = W.map(x => { const b = bt.get(Math.round(x.t / 864e5)); return b ? x.c / b : null; }); }
+  return zCtx[sym] = c;
+}
+const btcCloseAt = (t, wkly) => { const B = A.BTC, S = wkly ? B.weekly : B.daily, i = idxAt(S, t); return i < 0 ? null : i === S.length - 1 ? B.spot : S[i].c; };
+// The scoring pieces for one day: [weight, price -> 0-100 score] pairs, plus the Pi Cycle cap if it applied that day
+function zparts(sym, t, wkly) {
+  const a = A[sym], c = zctx(sym), j = idxAt(a.weekly, t), i = wkly ? -1 : idxAt(a.daily, t); if (j < 0) return null;
+  const ma200d = i >= 0 && c.d200[i] ? c.d200[i] : c.w29[j], bLo = j >= 21 && c.w20[j] ? Math.min(c.w20[j], c.e21[j]) : null;
+  const athPrev = Math.max(c.wAth[j], i > 0 ? c.dPrev[i] : 0);
+  const r = (ma, pts) => ma ? P => pw(P / ma, pts) : null, k = v => v == null ? null : () => v;
+  const dd = pts => P => pw((1 - P / Math.max(athPrev, P)) * 100, pts), rsi = pw(c.rsi[j], PB.rsiw);
+  let comps, cap = null;
+  if (sym === "BTC") {
+    const pl = a.m.fx ? powerLawUSD(t) * a.m.fx : null, m111 = i >= 0 && c.d350[i] ? c.d111[i] : c.w16[j], m350 = i >= 0 && c.d350[i] ? c.d350[i] : c.w50[j];
+    comps = [[.04, r(ma200d, PB.mayer)], [.14, r(c.w200[j], PB.btc.r200w)], [.07, r(c.w104[j], PB.btc.r2y)], [.13, r(pl, PB.btc.pl)], [.07, dd(PB.btc.dd)],
+      [.02, r(bLo, PB.btc.bmsb)], [.05, k(c.slope[j])], [.03, k(rsi)], [.02, k(c.macd[j])]];
+    if (m111 && m350 && m111 / (2 * m350) >= 0.95) cap = 20;
+  } else {
+    const W = ALTW[sym], bc = ready("BTC") ? btcCloseAt(t, wkly) : null;
+    // Bitcoin's score enters as its 7-day average (daily view), so one jumpy Bitcoin day doesn't shake this coin's bands
+    let bs = null; if (bc) { const v = []; for (let q = 0; q < (wkly ? 1 : 7); q++) { const tq = t - q * 864e5, cq = btcCloseAt(tq, wkly), zq = cq && zparts("BTC", tq, wkly); if (zq) v.push(zscore(zq, cq)); } if (v.length) bs = v.reduce((x, y) => x + y) / v.length; }
+    let ratio = null;
+    if (bc && c.rs) { const pr = c.rs.slice(0, j).filter(x => x != null).slice(-207); if (pr.length > 104) ratio = P => pctScore(pr, P / bc); }
+    comps = [[W.r200w, r(c.w200[j], PB.alt.r200w)], [W.dd, dd(PB.alt.dd)], [W.r2y, r(c.w104[j], PB.alt.r2y)], [W.slope, k(c.slope[j])], [W.mayer, r(ma200d, PB.mayer)],
+      [W.btc, k(bs)], [W.ratio, ratio], [W.rsiw, k(rsi)]];
+  }
+  return { comps: comps.filter(x => x[1]), cap };
+}
+function zscore(zp, P) { let s = 0, w = 0; for (const [wt, f] of zp.comps) { const v = f(P); if (v != null) { s += v * wt; w += wt; } }
+  const sc = w ? s / w : 50; return zp.cap != null ? Math.min(sc, zp.cap) : sc; }
+// lines[k] = price at the bottom of ZONES[k] (0 = can't be reached that day, Infinity = every price qualifies); sc = that day's price-only score
+function zoneSeries(sym, d, closes, wkly) {
+  const key = [sym, G.cur, wkly, d.length, d[0].t, last(d).t, A[sym].spot, A.BTC.spot].join("|");
+  if (zMemo[sym] && zMemo[sym].key === key) return zMemo[sym].v;
+  const v = d.map((q, n) => { const zp = zparts(sym, q.t, wkly); if (!zp || !zp.comps.length) return null;
+    const p = closes[n], top = zscore(zp, p / 1e3), bot = zscore(zp, p * 1e3);
+    const lines = ZONES.slice(0, 5).map(z => { if (top < z.min) return 0; if (bot >= z.min) return Infinity;
+      let lo = Math.log(p / 1e3), hi = Math.log(p * 1e3); for (let it = 0; it < 30; it++) { const mid = (lo + hi) / 2; if (zscore(zp, Math.exp(mid)) >= z.min) lo = mid; else hi = mid; }
+      return Math.exp((lo + hi) / 2); });
+    return { lines, sc: zscore(zp, p) }; });
+  zMemo[sym] = { key, v }; return v;
+}
+
 /* ---------- chart ---------- */
 let chartGeom = null;
 function drawChart() {
@@ -1308,8 +1396,12 @@ function drawChart() {
   const ph = isPhone(), n = Math.min(d.length, wkly ? 210 : days), cut = ser => ser.slice(-n);
   const dAll = d; d = cut(dAll); closes = cut(closes); ma200 = cut(ma200); m200w = cut(m200w); m2y = cut(m2y); mb = cut(mb); pl = cut(pl);
   // the phone shows only the levels near the price: the next three below and the nearest one above
-  const lv = ph ? [...a.levels.filter(l => l.px < a.spot).sort((p, q) => q.px - p.px).slice(0, 3), ...a.levels.filter(l => l.px >= a.spot).sort((p, q) => p.px - q.px).slice(0, 1)] : a.levels;
-  const inView = [...closes, ...m200w, ...m2y, ...ma200, ...mb, ...pl, ...lv.map(l => l.px)].filter(v => v > 0);
+  const zm = G.cmode === "zones", zs = zm ? zoneSeries(sym, d, closes, wkly) : null;
+  const lv = zm ? [] : ph ? [...a.levels.filter(l => l.px < a.spot).sort((p, q) => q.px - p.px).slice(0, 3), ...a.levels.filter(l => l.px >= a.spot).sort((p, q) => p.px - q.px).slice(0, 1)] : a.levels;
+  const cMin = Math.min(...closes), cMax = Math.max(...closes);
+  // score zones: the outer boundaries can sit far from the price, so only boundaries within 2.5× of the price range set the scale
+  const inView = zm ? [...closes, ...zs.flatMap(z => z ? z.lines.slice(1) : []).filter(v => v > cMin / 2.5 && v < cMax * 2.5)]
+    : [...closes, ...m200w, ...m2y, ...ma200, ...mb, ...pl, ...lv.map(l => l.px)].filter(v => v > 0);
   const lo = Math.min(...inView) * .9, hi = Math.max(...inView) * 1.05;
   const L = Math.log, pad = { l: 8, r: ph ? 46 : 76, t: 28, b: 24 };
   const kf = v => v >= 1e6 ? +(v / 1e6).toPrecision(3) + "M" : v >= 1000 ? +(v / 1000).toPrecision(3) + "k" : String(+v.toPrecision(3)), axl = v => ph ? kf(v) : fmtCur(v);
@@ -1319,7 +1411,8 @@ function drawChart() {
   ctx.font = (isPhone() ? "12px " : "11px ") + cssVar("--mono"); ctx.textBaseline = "middle";
   const ticks = []; for (let e = Math.floor(Math.log10(lo)); e <= Math.ceil(Math.log10(hi)); e++) for (const k of [1, 2, 5]) { const v = k * 10 ** e; if (v >= lo && v <= hi) ticks.push(v); }
   ctx.strokeStyle = line; ctx.lineWidth = 1; ctx.fillStyle = muted;
-  const lvY = ph ? lv.map(l => y(l.px)) : [];
+  const zNow = zm && last(zs) ? last(zs).lines.map((v, k) => ({ v, k })).filter(o => o.v > lo && o.v < hi) : [];
+  const lvY = [...(ph ? lv.map(l => y(l.px)) : []), ...zNow.map(o => y(o.v))];
   if (ticks.length < 3) { ticks.length = 0; for (let e = Math.floor(Math.log10(lo)); e <= Math.ceil(Math.log10(hi)); e++) for (const k of [1, 1.5, 2, 3, 4, 5, 6, 8]) { const v = k * 10 ** e; if (v >= lo && v <= hi) ticks.push(v); } }
   for (const v of ticks) { ctx.beginPath(); ctx.moveTo(pad.l, y(v)); ctx.lineTo(W - pad.r, y(v)); ctx.stroke(); if (!lvY.some(q => Math.abs(q - y(v)) < 13)) ctx.fillText(axl(v), W - pad.r + 6, y(v)); }
   ctx.textBaseline = "alphabetic"; let lastY = null;
@@ -1332,6 +1425,29 @@ function drawChart() {
   ctx.globalAlpha = 1; ctx.textBaseline = "alphabetic";
   const plot = (ser, col, wdt, dash) => { ctx.setLineDash(dash || []); ctx.strokeStyle = col; ctx.lineWidth = wdt; ctx.beginPath(); let st = false;
     ser.forEach((v, i) => { if (v == null) return; st ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v)); st = true; }); ctx.stroke(); ctx.setLineDash([]); };
+  if (zm) {
+    // one filled band per zone between its lower and upper boundary, then the boundary lines, then today's boundaries as labels
+    ctx.save(); ctx.beginPath(); ctx.rect(pad.l, pad.t, W - pad.l - pad.r, H - pad.t - pad.b); ctx.clip();
+    const yc = v => v <= 0 ? H : v === Infinity ? 0 : clamp(y(v), -5, H + 5), runs = []; let run = null;
+    zs.forEach((z, i) => { if (z) { if (!run) runs.push(run = []); run.push(i); } else run = null; });
+    for (let k = 0; k < 6; k++) { ctx.fillStyle = cssVar(ZONES[k].c); ctx.globalAlpha = .17;
+      for (const r of runs) { ctx.beginPath();
+        r.forEach((i, n) => { const v = k < 5 ? zs[i].lines[k] : Infinity; n ? ctx.lineTo(x(i), yc(v)) : ctx.moveTo(x(i), yc(v)); });
+        for (let n = r.length - 1; n >= 0; n--) ctx.lineTo(x(r[n]), yc(k ? zs[r[n]].lines[k - 1] : 0));
+        ctx.closePath(); ctx.fill(); } }
+    ctx.globalAlpha = .85;
+    for (let k = 0; k < 5; k++) plot(zs.map(z => z && z.lines[k] > 0 && z.lines[k] < Infinity ? z.lines[k] : null), cssVar(ZONES[k].c), 1.25);
+    ctx.restore(); ctx.globalAlpha = 1; ctx.textBaseline = "middle"; let prevZ = null;
+    for (const o of [...zNow].sort((p, q) => q.v - p.v)) { const yy = y(o.v); if (prevZ !== null && yy - prevZ < 13) continue;
+      ctx.fillStyle = cssVar(ZONES[o.k].c); ctx.fillText(axl(o.v), W - pad.r + 6, yy); prevZ = yy; }
+    ctx.textBaseline = "alphabetic";
+    const t = last(zs); $("zNote").textContent = "The bands use only the price-based signals, because the free sources have no history for the on-chain and sentiment data." +
+      (t ? ` Price-only score today: ${Math.round(t.sc)}. Full score: ${Math.round(a.m.score)}.` : "");
+    plot(closes, cssVar("--fg"), ph ? 1.5 : 1.75);
+    ctx.fillStyle = cssVar("--fg"); ctx.beginPath(); ctx.arc(x(closes.length - 1), y(a.spot), 4, 0, 7); ctx.fill();
+    chartGeom = { d, closes, ma200, m200w, m2y, pad, W, zs };
+    return;
+  }
   plot(pl, cssVar("--pl"), 1.5, [1, 3]); plot(m200w, cssVar("--ma200w"), 2); plot(m2y, cssVar("--ma2y"), 1.5); plot(ma200, cssVar("--ma200d"), 1.5); plot(mb, cssVar("--bmsb"), 1.25);
   const acc = cssVar("--accent"), g = ctx.createLinearGradient(0, pad.t, 0, H - pad.b);
   g.addColorStop(0, acc + "40"); g.addColorStop(1, acc + "00");
@@ -1345,7 +1461,9 @@ const readout = e => {
   if (!chartGeom) return; const g = chartGeom, r = e.target.getBoundingClientRect();
   const i = Math.round((e.clientX - r.left - g.pad.l) / (g.W - g.pad.l - g.pad.r) * (g.d.length - 1));
   if (i < 0 || i >= g.d.length) return;
-  $("readout").textContent = `${new Date(g.d[i].t).toISOString().slice(0, 10)}  price ${fmtCur(g.closes[i])}  200D ${fmtCur(g.ma200[i])}  2Y ${fmtCur(g.m2y[i])}  200W ${fmtCur(g.m200w[i])}`;
+  const z = g.zs && g.zs[i], dt = new Date(g.d[i].t).toISOString().slice(0, 10);
+  if (g.zs) { $("readout").textContent = `${dt}  ${fmtCur(g.closes[i])}` + (z ? `  ${zoneFor(z.sc).name} (${Math.round(z.sc)})` : ""); return; }
+  $("readout").textContent = `${dt}  price ${fmtCur(g.closes[i])}  200D ${fmtCur(g.ma200[i])}  2Y ${fmtCur(g.m2y[i])}  200W ${fmtCur(g.m200w[i])}`;
 };
 $("chart").addEventListener("pointermove", readout); $("chart").addEventListener("pointerdown", readout);
 $("chart").addEventListener("pointerleave", e => { if (e.pointerType === "mouse") $("readout").textContent = ""; });   // on touch, keep the values after the finger lifts
@@ -1427,6 +1545,12 @@ infoDlg.addEventListener("click", () => { if (infoDlg.close) infoDlg.close(); el
 const showCur = () => { $("cur").querySelectorAll("span").forEach(x => x.classList.toggle("on", x.dataset.c === G.cur)); $("cur").setAttribute("aria-label", `Currency: ${G.cur}. Tap to switch to ${CURS.find(c => c !== G.cur)}`); };
 showCur();
 if (!["3M", "6M", "1Y", "2Y", "4Y"].includes(G.range)) G.range = isPhone() ? "1Y" : "2Y";
+G.cmode = store.get("cmode", "lines") === "zones" ? "zones" : "lines";
+const showMode = () => { const zm = G.cmode === "zones"; $("cmode").querySelectorAll("span").forEach(x => x.classList.toggle("on", x.dataset.m === G.cmode));
+  $("chartTitle").textContent = zm ? "Price vs. score zones" : "Price vs. support lines"; $("pLines").hidden = $("lgLines").hidden = zm; $("pZones").hidden = $("lgZones").hidden = !zm; };
+showMode();
+$("cmode").setAttribute("aria-label", "Chart lines: support lines or score zones");
+$("cmode").addEventListener("click", e => { const sp = e.target.closest("span[data-m]"); G.cmode = sp ? sp.dataset.m : G.cmode === "zones" ? "lines" : "zones"; store.set("cmode", G.cmode); showMode(); $("readout").textContent = ""; drawChart(); });
 const showRng = () => $("rng").querySelectorAll("span").forEach(x => x.classList.toggle("on", x.dataset.r === G.range)); showRng();
 $("rng").setAttribute("aria-label", "Chart time frame: 3 or 6 months, 1, 2 or 4 years");
 $("rng").addEventListener("click", e => { const sp = e.target.closest("span[data-r]"), o = ["3M", "6M", "1Y", "2Y", "4Y"]; G.range = sp ? sp.dataset.r : o[(o.indexOf(G.range) + 1) % 5]; store.set("range", G.range); showRng(); $("readout").textContent = ""; drawChart(); });
