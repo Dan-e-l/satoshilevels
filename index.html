@@ -167,6 +167,8 @@ details[open] > summary .chev { transform: rotate(180deg) }
 .legend .znote { flex: 1 1 100%; margin: 2px 0 0; font-size: inherit }
 .legend .sm { display: none }
 .seg span.on { background: var(--accent-soft); color: var(--accent) }
+#rng span.off { opacity: .35 }
+@media (max-width: 520px) { #rng span { padding: 9px 6px } }
 .controls .info-btn { font-weight: 700; color: var(--muted) }
 .controls .info-btn.ok { color: var(--z5); border-color: color-mix(in srgb, var(--z5) 45%, var(--line)) }
 .controls button { border-radius: 10px; border-color: color-mix(in srgb, var(--line) 70%, transparent); background: color-mix(in srgb, var(--panel) 60%, transparent) }
@@ -459,7 +461,7 @@ a.coin:hover { border-color: var(--accent) }
   </section>
 
   <section class="panel" id="secChart">
-    <div class="sec-head"><h2 id="chartTitle">Price vs. support lines</h2><button type="button" id="rng" class="seg"><span data-r="3M">3M</span><span data-r="6M">6M</span><span data-r="1Y">1Y</span><span data-r="2Y">2Y</span><span data-r="4Y">4Y</span></button><button type="button" id="cmode" class="seg"><span data-m="lines">Support lines</span><span data-m="zones">Score zones</span></button><p id="pLines"><span class="d-only">Daily close, log scale. </span>Dashed lines are the <span class="ph-only">nearest </span>ladder levels.</p><p id="pZones" hidden><span class="d-only">Log scale. </span>The coloured bands show which score zone each price was in on that day. The labels on the right are today's zone boundaries.</p></div>
+    <div class="sec-head"><h2 id="chartTitle">Price history</h2><button type="button" id="rng" class="seg"><span data-r="3M">3M</span><span data-r="6M">6M</span><span data-r="1Y">1Y</span><span data-r="2Y">2Y</span><span data-r="4Y">4Y</span><span data-r="8Y">8Y</span></button><button type="button" id="cmode" class="seg"><span data-m="lines">Trend lines</span><span data-m="zones">Score zones</span></button><p id="pLines"><span class="d-only"><span id="pClose">Daily</span> close, log scale. </span>Dashed lines are the <span class="ph-only">nearest </span>ladder levels.</p><p id="pZones" hidden><span class="d-only">Log scale. </span>The coloured bands show which score zone each price was in on that day. The labels on the right are today's zone boundaries.</p></div>
     <div class="chart-box"><canvas id="chart"></canvas><div class="readout" id="readout"></div></div>
     <div class="legend" id="lgZones" hidden>
       <span><i class="swatch" style="background:var(--z5)"></i><span class="lg">Generational buy</span><span class="sm">Gen. buy</span></span>
@@ -1380,23 +1382,32 @@ function zoneSeries(sym, d, closes, wkly) {
 
 /* ---------- chart ---------- */
 let chartGeom = null;
+const has8Y = sym => ((A[sym] && A[sym].weekly) || []).length >= 418;   // 8 years of weekly closes
+// the selected time frame is highlighted; 8Y is greyed out for a coin without 8 years of history, which then shows 4Y
+function showRng() { const sym = G.view, no8 = !!COINS[sym] && !has8Y(sym), eff = G.range === "8Y" && no8 ? "4Y" : G.range;
+  $("rng").querySelectorAll("span").forEach(x => { x.classList.toggle("on", x.dataset.r === eff); x.classList.toggle("off", x.dataset.r === "8Y" && no8); }); }
 function drawChart() {
   const sym = G.view, a = A[sym]; if (!a || !ready(sym)) return;
   const cv = $("chart"), box = cv.parentElement, dpr = window.devicePixelRatio || 1;
   const W = box.clientWidth, H = box.clientHeight; if (!W) return; cv.width = W * dpr; cv.height = H * dpr;
   const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
-  // 4 years is drawn from weekly closes (the daily history only covers about 2 years); there the 200-day line is a 29-week average
-  const days = { "3M": 92, "6M": 184, "1Y": 366, "2Y": 731, "4Y": 1462 }[G.range] || 731, wkly = G.range === "4Y";
+  // 4 and 8 years are drawn from weekly closes (the daily history only covers about 2 years); there the 200-day line is a 29-week average.
+  // A coin with too little history for 8 years (Solana) shows 4 years instead.
+  showRng(); const rg = G.range === "8Y" && !has8Y(sym) ? "4Y" : G.range;
+  const days = { "3M": 92, "6M": 184, "1Y": 366, "2Y": 731, "4Y": 1462, "8Y": 2923 }[rg] || 731, wkly = rg === "4Y" || rg === "8Y"; $("pClose").textContent = wkly ? "Weekly" : "Daily";
   const wc = a.weekly.map(x => x.c), w200 = smaSeries(wc, 200), w104 = smaSeries(wc, 104), w20 = smaSeries(wc, 20);
   let d = wkly ? a.weekly : a.daily, closes = d.map(x => x.c); closes[closes.length - 1] = a.spot;
   let ma200 = wkly ? smaSeries(closes, 29) : smaSeries(closes, 200);
   const mapW = ser => wkly ? ser : d.map(x => { let j = a.weekly.length - 1; while (j > 0 && a.weekly[j].t > x.t) j--; return ser[j]; });
   let m200w = mapW(w200), m2y = mapW(w104), mb = mapW(w20);
   let pl = sym === "BTC" && a.m.fx ? d.map(x => powerLawUSD(x.t) * a.m.fx) : d.map(() => null);
-  const ph = isPhone(), n = Math.min(d.length, wkly ? 210 : days), cut = ser => ser.slice(-n);
+  const ph = isPhone(), n = Math.min(d.length, wkly ? (rg === "8Y" ? 418 : 210) : days), cut = ser => ser.slice(-n);
   const dAll = d; d = cut(dAll); closes = cut(closes); ma200 = cut(ma200); m200w = cut(m200w); m2y = cut(m2y); mb = cut(mb); pl = cut(pl);
   // the phone shows only the levels near the price: the next three below and the nearest one above
-  const zm = G.cmode === "zones", zs = zm ? zoneSeries(sym, d, closes, wkly) : null;
+  const zm = G.cmode === "zones"; let zs = zm ? zoneSeries(sym, d, closes, wkly) : null;
+  // 8 years: bands only where the 200-week average exists (Ethereum's starts in mid-2019); before that the score would rest on too few pieces
+  let zFrom = null; if (zm && rg === "8Y") { const c = zctx(sym), off = a.weekly.length - d.length; zs = zs.map((z, i) => z && c.w200[off + i] ? z : null);
+    const f = zs.findIndex(z => z); if (f > 0) zFrom = d[f].t; }
   const lv = zm ? [] : ph ? [...a.levels.filter(l => l.px < a.spot).sort((p, q) => q.px - p.px).slice(0, 3), ...a.levels.filter(l => l.px >= a.spot).sort((p, q) => p.px - q.px).slice(0, 1)] : a.levels;
   const cMin = Math.min(...closes), cMax = Math.max(...closes);
   // score zones: the outer boundaries can sit far from the price, so only boundaries within 2.5× of the price range set the scale
@@ -1424,7 +1435,7 @@ function drawChart() {
     if (ph && (prevLY === null || y(l.px) - prevLY >= 13)) { ctx.globalAlpha = 1; ctx.fillStyle = col; ctx.fillText(kf(l.px), W - pad.r + 6, y(l.px)); prevLY = y(l.px); } }
   ctx.globalAlpha = 1; ctx.textBaseline = "alphabetic";
   const plot = (ser, col, wdt, dash) => { ctx.setLineDash(dash || []); ctx.strokeStyle = col; ctx.lineWidth = wdt; ctx.beginPath(); let st = false;
-    ser.forEach((v, i) => { if (v == null) return; st ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v)); st = true; }); ctx.stroke(); ctx.setLineDash([]); };
+    ser.forEach((v, i) => { if (v == null) { st = false; return; } st ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v)); st = true; }); ctx.stroke(); ctx.setLineDash([]); };
   if (zm) {
     // one filled band per zone between its lower and upper boundary, then the boundary lines, then today's boundaries as labels
     ctx.save(); ctx.beginPath(); ctx.rect(pad.l, pad.t, W - pad.l - pad.r, H - pad.t - pad.b); ctx.clip();
@@ -1442,7 +1453,8 @@ function drawChart() {
       ctx.fillStyle = cssVar(ZONES[o.k].c); ctx.fillText(axl(o.v), W - pad.r + 6, yy); prevZ = yy; }
     ctx.textBaseline = "alphabetic";
     const t = last(zs); $("zNote").textContent = "The bands use only the price-based signals, because the free sources have no history for the on-chain and sentiment data." +
-      (t ? ` Price-only score today: ${Math.round(t.sc)}. Full score: ${Math.round(a.m.score)}.` : "");
+      (t ? ` Price-only score today: ${Math.round(t.sc)}. Full score: ${Math.round(a.m.score)}.` : "") +
+      (zFrom ? ` The bands start in ${MON[new Date(zFrom).getUTCMonth()]} ${new Date(zFrom).getUTCFullYear()}, once ${COINS[sym].name} has 4 years of price history.` : "");
     plot(closes, cssVar("--fg"), ph ? 1.5 : 1.75);
     ctx.fillStyle = cssVar("--fg"); ctx.beginPath(); ctx.arc(x(closes.length - 1), y(a.spot), 4, 0, 7); ctx.fill();
     chartGeom = { d, closes, ma200, m200w, m2y, pad, W, zs };
@@ -1544,16 +1556,17 @@ infoDlg.addEventListener("click", () => { if (infoDlg.close) infoDlg.close(); el
 // Currency: one button showing both choices; a tap switches to the other one.
 const showCur = () => { $("cur").querySelectorAll("span").forEach(x => x.classList.toggle("on", x.dataset.c === G.cur)); $("cur").setAttribute("aria-label", `Currency: ${G.cur}. Tap to switch to ${CURS.find(c => c !== G.cur)}`); };
 showCur();
-if (!["3M", "6M", "1Y", "2Y", "4Y"].includes(G.range)) G.range = isPhone() ? "1Y" : "2Y";
+if (!["3M", "6M", "1Y", "2Y", "4Y", "8Y"].includes(G.range)) G.range = isPhone() ? "1Y" : "2Y";
 G.cmode = store.get("cmode", "lines") === "zones" ? "zones" : "lines";
 const showMode = () => { const zm = G.cmode === "zones"; $("cmode").querySelectorAll("span").forEach(x => x.classList.toggle("on", x.dataset.m === G.cmode));
-  $("chartTitle").textContent = zm ? "Price vs. score zones" : "Price vs. support lines"; $("pLines").hidden = $("lgLines").hidden = zm; $("pZones").hidden = $("lgZones").hidden = !zm; };
+  $("pLines").hidden = $("lgLines").hidden = zm; $("pZones").hidden = $("lgZones").hidden = !zm; };
 showMode();
-$("cmode").setAttribute("aria-label", "Chart lines: support lines or score zones");
+$("cmode").setAttribute("aria-label", "Chart lines: trend lines or score zones");
 $("cmode").addEventListener("click", e => { const sp = e.target.closest("span[data-m]"); G.cmode = sp ? sp.dataset.m : G.cmode === "zones" ? "lines" : "zones"; store.set("cmode", G.cmode); showMode(); $("readout").textContent = ""; drawChart(); });
-const showRng = () => $("rng").querySelectorAll("span").forEach(x => x.classList.toggle("on", x.dataset.r === G.range)); showRng();
-$("rng").setAttribute("aria-label", "Chart time frame: 3 or 6 months, 1, 2 or 4 years");
-$("rng").addEventListener("click", e => { const sp = e.target.closest("span[data-r]"), o = ["3M", "6M", "1Y", "2Y", "4Y"]; G.range = sp ? sp.dataset.r : o[(o.indexOf(G.range) + 1) % 5]; store.set("range", G.range); showRng(); $("readout").textContent = ""; drawChart(); });
+$("rng").setAttribute("aria-label", "Chart time frame: 3 or 6 months, 1, 2, 4 or 8 years");
+$("rng").addEventListener("click", e => { const sp = e.target.closest("span[data-r]"), o = ["3M", "6M", "1Y", "2Y", "4Y", "8Y"], sym = G.view;
+  if (sp && sp.dataset.r === "8Y" && COINS[sym] && !has8Y(sym)) { $("readout").textContent = `${COINS[sym].name}: only ${Math.floor((A[sym].weekly || []).length / 52)} years of history`; return; }
+  G.range = sp ? sp.dataset.r : o[(o.indexOf(G.range) + 1) % o.length]; if (G.range === "8Y" && COINS[sym] && !has8Y(sym)) G.range = "3M"; store.set("range", G.range); showRng(); $("readout").textContent = ""; drawChart(); });
 $("cur").addEventListener("click", () => { G.cur = CURS.find(c => c !== G.cur); store.set("cur", G.cur); showCur(); fxMemo = {}; startView(); fullLoad(); });
 $("refresh").addEventListener("click", () => fullLoad(true));
 $("theme").addEventListener("click", () => {
