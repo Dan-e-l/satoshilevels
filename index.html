@@ -1376,7 +1376,7 @@ function zoneSeries(sym, d, closes, wkly) {
     const lines = ZONES.slice(0, 5).map(z => { if (top < z.min) return 0; if (bot >= z.min) return Infinity;
       let lo = Math.log(p / 1e3), hi = Math.log(p * 1e3); for (let it = 0; it < 30; it++) { const mid = (lo + hi) / 2; if (zscore(zp, Math.exp(mid)) >= z.min) lo = mid; else hi = mid; }
       return Math.exp((lo + hi) / 2); });
-    return { lines, sc: zscore(zp, p) }; });
+    return { lines, sc: zscore(zp, p), cap: zp.cap != null }; });
   zMemo[sym] = { key, v }; return v;
 }
 
@@ -1405,9 +1405,29 @@ function drawChart() {
   const dAll = d; d = cut(dAll); closes = cut(closes); ma200 = cut(ma200); m200w = cut(m200w); m2y = cut(m2y); mb = cut(mb); pl = cut(pl);
   // the phone shows only the levels near the price: the next three below and the nearest one above
   const zm = G.cmode === "zones"; let zs = zm ? zoneSeries(sym, d, closes, wkly) : null;
-  // 8 years: bands only where the 200-week average exists (Ethereum's starts in mid-2019); before that the score would rest on too few pieces
-  let zFrom = null; if (zm && rg === "8Y") { const c = zctx(sym), off = a.weekly.length - d.length; zs = zs.map((z, i) => z && c.w200[off + i] ? z : null);
+  // 4 and 8 years: bands only once the coin has 2 years (4 years for 8Y) of history, i.e. where the 2-year (200-week) average exists
+  // (Solana's start in mid-2023, Ethereum's 8Y bands in mid-2019); before that the score would rest on too few pieces, mostly Bitcoin's score
+  const zYrs = rg === "8Y" ? 4 : 2;
+  let zFrom = null; if (zm && wkly) { const c = zctx(sym), ma = rg === "8Y" ? c.w200 : c.w104, off = a.weekly.length - d.length; zs = zs.map((z, i) => z && ma[off + i] ? z : null);
     const f = zs.findIndex(z => z); if (f > 0) zFrom = d[f].t; }
+  // For Ethereum and Solana, Bitcoin's score is a fixed piece of the score, so the outer boundaries (Gen. buy, Expensive)
+  // can't be reached at any price while Bitcoin sits near its own zone edge, and they flicker in and out.
+  // For the drawing: gaps of up to 4 weeks (10 days) are bridged, and stretches shorter than 3 weeks (7 days) are left out.
+  let zGap = false;
+  if (zm) { const gap = wkly ? 4 : 10, minRun = wkly ? 3 : 7, ok = v => v > 0 && v < Infinity;
+    zs = zs.map(z => z && { ...z, lines: [...z.lines] });
+    for (let k = 0; k < 5; k++) {
+      const runs = []; zs.forEach((z, i) => { if (!z) return; const g = ok(z.lines[k]), r = last(runs);
+        if (r && r.g === g && r.e === i - 1) r.e = i; else runs.push({ g, s: i, e: i }); });
+      runs.forEach((r, n) => { const p = runs[n - 1], q = runs[n + 1];
+        if (!r.g && p && q && p.g && q.g && p.e === r.s - 1 && q.s === r.e + 1 && r.e - r.s < gap) {
+          const a0 = Math.log(zs[p.e].lines[k]), a1 = Math.log(zs[q.s].lines[k]);
+          for (let i = r.s; i <= r.e; i++) zs[i].lines[k] = Math.exp(a0 + (a1 - a0) * (i - p.e) / (q.s - p.e)); r.g = true; } });
+      const merged = []; for (const r of runs) { const m = last(merged); if (m && m.g === r.g && m.e === r.s - 1) m.e = r.e; else merged.push({ ...r }); }
+      merged.forEach((r, n) => { if (!r.g) { zGap = true; return; } if (r.e - r.s + 1 >= minRun || r.e === zs.length - 1) return;
+        const nb = merged[n - 1] && !merged[n - 1].g ? zs[merged[n - 1].e] : merged[n + 1] && !merged[n + 1].g ? zs[merged[n + 1].s] : null;
+        if (nb) { for (let i = r.s; i <= r.e; i++) zs[i].lines[k] = nb.lines[k]; zGap = true; } });
+    } }
   const lv = zm ? [] : ph ? [...a.levels.filter(l => l.px < a.spot).sort((p, q) => q.px - p.px).slice(0, 3), ...a.levels.filter(l => l.px >= a.spot).sort((p, q) => p.px - q.px).slice(0, 1)] : a.levels;
   const cMin = Math.min(...closes), cMax = Math.max(...closes);
   // score zones: the outer boundaries can sit far from the price, so only boundaries within 2.5× of the price range set the scale
@@ -1447,14 +1467,21 @@ function drawChart() {
         for (let n = r.length - 1; n >= 0; n--) ctx.lineTo(x(r[n]), yc(k ? zs[r[n]].lines[k - 1] : 0));
         ctx.closePath(); ctx.fill(); } }
     ctx.globalAlpha = .85;
-    for (let k = 0; k < 5; k++) plot(zs.map(z => z && z.lines[k] > 0 && z.lines[k] < Infinity ? z.lines[k] : null), cssVar(ZONES[k].c), 1.25);
+    // Ethereum and Solana: the outer two boundaries (Gen. buy, Expensive) come and go with Bitcoin's score, so they are shown only as bands
+    for (let k = 0; k < 5; k++) if (sym === "BTC" || (k > 0 && k < 4)) plot(zs.map(z => z && z.lines[k] > 0 && z.lines[k] < Infinity ? z.lines[k] : null), cssVar(ZONES[k].c), 1.25);
     ctx.restore(); ctx.globalAlpha = 1; ctx.textBaseline = "middle"; let prevZ = null;
     for (const o of [...zNow].sort((p, q) => q.v - p.v)) { const yy = y(o.v); if (prevZ !== null && yy - prevZ < 13) continue;
       ctx.fillStyle = cssVar(ZONES[o.k].c); ctx.fillText(axl(o.v), W - pad.r + 6, yy); prevZ = yy; }
     ctx.textBaseline = "alphabetic";
+    // weeks (days) when Bitcoin's Pi Cycle Top capped the score: the whole column is Hot
+    const capI = zs.map((z, i) => z && z.cap ? i : -1).filter(i => i >= 0), mY = i => { const q = new Date(d[i].t); return MON[q.getUTCMonth()] + " " + q.getUTCFullYear(); };
+    const zCap = capI.length ? (mY(capI[0]) === mY(last(capI)) ? mY(capI[0]) : mY(capI[0]).replace(/ (\d+)$/, (m, yr) => last(capI) && new Date(d[last(capI)].t).getUTCFullYear() == yr ? "" : m) + "–" + mY(last(capI))) : null;
     const t = last(zs); $("zNote").textContent = "The bands use only the price-based signals, because the free sources have no history for the on-chain and sentiment data." +
       (t ? ` Price-only score today: ${Math.round(t.sc)}. Full score: ${Math.round(a.m.score)}.` : "") +
-      (zFrom ? ` The bands start in ${MON[new Date(zFrom).getUTCMonth()]} ${new Date(zFrom).getUTCFullYear()}, once ${COINS[sym].name} has 4 years of price history.` : "");
+      (zFrom ? ` The bands start in ${MON[new Date(zFrom).getUTCMonth()]} ${new Date(zFrom).getUTCFullYear()}, once ${COINS[sym].name} has ${zYrs} years of price history.` : "") +
+      (sym !== "BTC" ? " The Gen. buy and Expensive zones are shown as bands only: Bitcoin's own score is part of the score, so at times no price could reach them." :
+        zGap ? " Where a boundary line is missing, no price could reach that zone at the time." : "") +
+      (zCap ? ` The all-red stretch (${zCap}) is the Pi Cycle Top cap: with it, the score stays at 20 or below at any price.` : "");
     plot(closes, cssVar("--fg"), ph ? 1.5 : 1.75);
     ctx.fillStyle = cssVar("--fg"); ctx.beginPath(); ctx.arc(x(closes.length - 1), y(a.spot), 4, 0, 7); ctx.fill();
     chartGeom = { d, closes, ma200, m200w, m2y, pad, W, zs };
