@@ -95,7 +95,7 @@ button:disabled { opacity: .7; cursor: progress }
 .facts .v { font: 500 1rem var(--mono) }
 .zone-name { font: 700 1.5rem/1.2 var(--display); margin: 4px 0 }
 .gauge { position: relative; height: 12px; border-radius: 6px; margin: 14px 0 6px;
-  background: linear-gradient(90deg, var(--z0), var(--z1) 25%, var(--z2) 42%, var(--z3) 57%, var(--z4) 72%, var(--z5)) }
+  background: linear-gradient(90deg, var(--z0), var(--z1) 27%, var(--z2) 45%, var(--z3) 62%, var(--z4) 77%, var(--z5) 92%) }
 .gauge .pin { position: absolute; top: -5px; width: 4px; height: 22px; border-radius: 2px; background: var(--fg); box-shadow: 0 0 0 2px var(--panel); transform: translateX(-50%); transition: left .6s }
 .gauge-scale { display: flex; justify-content: space-between; font-size: .7rem; color: var(--muted) }
 .groups { display: grid; gap: 6px; margin-top: 14px }
@@ -431,7 +431,7 @@ a.coin:hover { border-color: var(--accent) }
       </div>
       <div class="dca sell tap" id="sellBox" data-k="dca" role="button" tabindex="0" aria-haspopup="dialog" hidden>
         <div class="mult" id="sellPct">—</div>
-        <div class="dca-t"><strong>Sell option</strong><br><span class="muted">of your holdings per month while in this zone. Keep the cash and buy back from Strong accumulate (65+).</span></div>
+        <div class="dca-t"><strong>Sell option</strong><br><span class="muted">of your holdings per month while in this zone. Keep the cash and buy back from Strong accumulate (70+).</span></div>
       </div>
       <div class="facts notap">
         <div><div class="label" id="f1Lbl">Sats per 1 USD</div><div class="v" id="satsPerUnit">—</div></div>
@@ -753,10 +753,10 @@ const powerLawUSD = t => 1.0117e-17 * Math.pow((t - GENESIS) / 864e5, 5.82);
 const PL_FLOOR = 0.42;
 
 const ZONES = [
-  { min: 80, name: "Generational buy", mult: "3×", c: "--z5", text: "Price is at or below long-term cycle floors. Historically the best entries.", hist: "100% of days in this zone were higher a year later (median +111%)" },
-  { min: 65, name: "Strong accumulate", mult: "2×", c: "--z4", text: "Well below trend. Increase buys and set limit orders lower down.", hist: "94% of days in this zone were higher a year later (median +132%)" },
-  { min: 50, name: "Accumulate", mult: "1.5×", c: "--z3", text: "Cheaper than usual. A good time to stack a bit extra.", hist: "93% of days in this zone were higher a year later (median +145%)" },
-  { min: 35, name: "Fair value", mult: "1×", c: "--z2", text: "Around trend. Keep your normal recurring buy.", hist: "69% of days in this zone were higher a year later (median +39%)" },
+  { min: 85, name: "Generational buy", mult: "3×", c: "--z5", text: "Price is at or below long-term cycle floors. Historically the best entries.", hist: "100% of days in this zone were higher a year later (median +96%)" },
+  { min: 70, name: "Strong accumulate", mult: "2×", c: "--z4", text: "Well below trend. Increase buys and set limit orders lower down.", hist: "99% of days in this zone were higher a year later (median +125%)" },
+  { min: 55, name: "Accumulate", mult: "1.5×", c: "--z3", text: "Cheaper than usual. A good time to stack a bit extra.", hist: "95% of days in this zone were higher a year later (median +165%)" },
+  { min: 35, name: "Fair value", mult: "1×", c: "--z2", text: "Around trend. Keep your normal recurring buy.", hist: "75% of days in this zone were higher a year later (median +59%)" },
   { min: 20, name: "Expensive", mult: "0.5×", sell: "2%", c: "--z1", text: "Stretched above trend. Buy smaller; taking some profit is an option.", hist: "only 32% of days in this zone were higher a year later (median −16%)" },
   { min: -1, name: "Overheated", mult: "0×", sell: "5%", c: "--z0", text: "Far above every support line. Historically near cycle tops; stop buying and consider taking profit.", hist: "47% of days in this zone were higher a year later (median −9%)" }
 ];
@@ -941,8 +941,8 @@ function computeBTC(a) {
 /* ---------- Ethereum and Solana model ---------- */
 // Backtest (2015–2026 for BTC, 2018–2026 for ETH): share of days higher one year later, and the median one-year change, per zone.
 const ZHIST = {
-  ETH: { "Generational buy": "83% of days in this zone were higher a year later (median +70%)", "Strong accumulate": "86% of days in this zone were higher a year later (median +61%)",
-         "Accumulate": "61% of days in this zone were higher a year later (median +44%)", "Fair value": "only 23% of days in this zone were higher a year later (median −24%)",
+  ETH: { "Generational buy": "88% of days in this zone were higher a year later (median +76%)", "Strong accumulate": "82% of days in this zone were higher a year later (median +47%)",
+         "Accumulate": "71% of days in this zone were higher a year later (median +60%)", "Fair value": "only 34% of days in this zone were higher a year later (median −16%)",
          "Expensive": "only 15% of days in this zone were higher a year later (median −45%)", "Overheated": "35% of days in this zone were higher a year later (median −50%)" },
   SOL: null
 };
@@ -1224,7 +1224,7 @@ function info(k) {
       return `<tr${cur ? ' class="cur"' : ""}><td class="num">${i ? Math.max(0, z.min) + "–" + (hi - 1) : z.min + "–100"}</td><td style="color:var(${z.c});font-weight:600">${z.name}${cur ? ' <span class="here">now</span>' : ""}</td><td class="r num">${z.mult}</td></tr>`; }).join("")}</tbody></table>
     <p class="muted">Buy: multiply your normal recurring buy. Sell option: about 2% of your holdings per month in Expensive, 5% in Overheated; tap Suggested DCA size for details.${G.view === "BTC" ? " A Pi Cycle Top reading of 0.95 or more caps the score at 20." : G.view === "overview" ? " For Bitcoin, a Pi Cycle Top reading of 0.95 or more caps the score at 20." : ""}</p>` };
   if (kind === "dca") return { title: "Buy and sell sizes", html: `<p><strong>Buy.</strong> The multiplier scales your normal recurring buy: at 2× you buy twice your usual amount, at 0× you skip it.</p>
-    <p><strong>Sell option.</strong> In Expensive, sell about 2% of your holdings per month; in Overheated, about 5%. Keep the cash. Once the score is back at Strong accumulate (65+), put about 10% of that cash in each period on top of your normal buy. When Bitcoin's Pi Cycle Top crosses, selling about 20% once has also helped.</p>
+    <p><strong>Sell option.</strong> In Expensive, sell about 2% of your holdings per month; in Overheated, about 5%. Keep the cash. Once the score is back at Strong accumulate (70+), put about 10% of that cash in each period on top of your normal buy. When Bitcoin's Pi Cycle Top crosses, selling about 20% once has also helped.</p>
     <p><strong>Backtest</strong> on 4-year windows, compared with buying only: for Bitcoin since 2015 the sell option came out ahead in 80% of windows (typically +11%, worst −5%); for Ethereum since 2018 in 89% (typically +13%, worst −15%). Pi Cycle crosses (2013, 2017, 2021) were never worse, but there were only four. Selling without buying back later did worse for Bitcoin, because it kept rising.</p>
     <p class="muted">Selling is an option, not a signal: the model was built to find good buys, and the last top (October 2025) only reached Expensive. Fees and taxes are not included. Solana could not be backtested.</p>` };
   if (!m) return null;
@@ -1245,7 +1245,7 @@ function render() {
 
   const pi = A.BTC.m && A.BTC.cur === G.cur ? A.BTC.m.pi : null, showPi = pi >= 0.95 && (ov || G.view === "BTC");
   $("piWarn").hidden = !showPi;
-  if (showPi) $("piWarn").textContent = pi >= 1 ? "Bitcoin's Pi Cycle Top has crossed. In past cycles this happened within days of the top. Sell option: about 20% of your Bitcoin, once; buy back from Strong accumulate (65+)." : `Bitcoin's Pi Cycle Top is close to crossing (${pi.toFixed(2)} of 1.00). Top risk is rising.`;
+  if (showPi) $("piWarn").textContent = pi >= 1 ? "Bitcoin's Pi Cycle Top has crossed. In past cycles this happened within days of the top. Sell option: about 20% of your Bitcoin, once; buy back from Strong accumulate (70+)." : `Bitcoin's Pi Cycle Top is close to crossing (${pi.toFixed(2)} of 1.00). Top risk is rising.`;
   if (ov) renderOverview(); else renderDetail(G.view);
   renderSources();
 }
