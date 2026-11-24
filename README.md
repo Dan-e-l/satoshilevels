@@ -22,7 +22,24 @@ The app then opens full screen from its own icon and keeps the last data availab
 
 ## How it works
 
-The app is a single HTML file with no build step and no server. Your browser fetches public market data directly from the sources (Kraken, with Binance and Bitstamp as fallbacks, plus mempool.space, blockchain.com, bitcoin-data.com, Coin Metrics, DefiLlama, CoinGecko, alternative.me and OKX). Nothing is collected or sent anywhere; settings are stored only on your device.
+The app is a single HTML file with no build step, no server, no account and no API keys. Your browser fetches public market data directly from free sources and works out the score on your phone. Nothing is collected or sent anywhere; settings are stored only on your device.
+
+## Data sources
+
+| Source | Used for |
+| --- | --- |
+| Kraken (Binance and Bitstamp as fallbacks) | Prices and daily candles |
+| bitcoin-data.com | Bitcoin MVRV Z-score and realized price |
+| Coin Metrics (community API) | Ethereum MVRV and realized price; fee data as a fallback |
+| blockchain.com | Bitcoin miner revenue (Puell Multiple) and thermocap |
+| mempool.space | Bitcoin hashrate |
+| DefiLlama | Ethereum fee income; value locked on Ethereum and Solana |
+| Binance, Bybit and OKX | Perpetual funding rates (the first one that answers is used) |
+| alternative.me | Fear & Greed Index |
+| CoinGecko | Bitcoin dominance |
+| Frankfurter and open.er-api.com | USD to CHF exchange rate |
+
+These are free public services, so some run a few days behind or are slow now and then. The app tries a fallback where one exists, keeps the last good reading on your device, and says on screen when a reading is not from today.
 
 ## Disclaimer
 
