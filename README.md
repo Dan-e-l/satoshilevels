@@ -11,7 +11,7 @@ A small phone web app that shows how cheap or expensive Bitcoin, Ethereum and So
 - **Signals.** Every indicator behind the score, with today's reading and a short explanation.
 - **Side by side.** The three coins in one table: score, zone, buy size, sell option and the main readings.
 - **Since your last visit.** A note when a coin has changed zone or crossed a ladder level since you last opened the app.
-- **Alerts.** A note when Bitcoin falls below or climbs back above its realized price (the on-chain confirmation, see below), and a banner when the US spot Bitcoin ETFs see unusually large outflows. The banner can be closed with the ✕.
+- **Alerts.** A note when Bitcoin falls below or climbs back above its realized price (the on-chain confirmation, see below), and a banner when the US spot Bitcoin ETFs see unusually large outflows.
 
 Prices can be shown in USD or CHF, in dark or light mode.
 
