@@ -81,6 +81,8 @@ button:disabled { opacity: .7; cursor: progress }
 .news a::after { content: " ›"; color: var(--accent) }
 .tabs a { position: relative } .tabs a.news::after { content: ""; position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent) }
 .banner.hint { border-color: var(--z3); background: color-mix(in srgb, var(--z3) 12%, transparent) }
+#etfFlag { display: flex; align-items: flex-start; gap: 10px; padding-right: 6px } #etfFlag[hidden] { display: none }
+#etfFlag span { flex: 1 } #etfFlag button { flex: none; width: 36px; min-height: 36px; margin: -8px 0 -8px; padding: 0; background: none; border: 0; color: var(--muted); font-size: 16px }
 .banner.warn { border-color: var(--z1); background: color-mix(in srgb, var(--z1) 12%, transparent) }
 
 /* Verdict */
@@ -140,6 +142,7 @@ canvas { width: 100%; height: 100%; display: block }
 
 footer { font-size: .8rem; color: var(--accent); display: grid; gap: 8px }
 footer p { margin: 0; max-width: 90ch }
+footer .copy { color: var(--muted) }
 .src-list { display: flex; flex-wrap: wrap; gap: 6px 16px; list-style: none; padding: 0; margin: 0 }
 .src-list .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; background: var(--muted) }
 .src-list .ok .dot { background: var(--z5) } .src-list .bad .dot { background: var(--z0) }
@@ -399,7 +402,7 @@ a.coin:hover { border-color: var(--accent) }
   <div id="err" class="banner" hidden></div>
   <div id="news" class="banner news" hidden></div>
   <div id="piWarn" class="banner warn" hidden></div>
-  <div id="etfFlag" class="banner hint" hidden></div>
+  <div id="etfFlag" class="banner hint" hidden><span id="etfTxt"></span><button type="button" id="etfX" aria-label="Dismiss">✕</button></div>
 
   <!-- ================= OVERVIEW ================= -->
   <div id="viewOverview" class="wrap" style="max-width:none">
@@ -493,6 +496,7 @@ a.coin:hover { border-color: var(--accent) }
 
   <footer>
     <p><strong>Past behaviour doesn't guarantee future behaviour. This is a decision aid, not financial advice.</strong></p>
+    <p class="copy">© 2026 Dan-e-l</p>
   </footer>
   <dialog id="infoDlg" aria-labelledby="infoTitle">
     <div class="dlg-head"><h2 id="infoTitle"></h2></div>
@@ -958,9 +962,9 @@ function computeBTC(a) {
     for (let i = v.length - 1; i >= 0 && Math.sign(v[i]) === sg; i--) streak++;
     const rank = s20.filter(x => x < now).length / s20.length, d = last(ef)[0], p10 = [...s20].sort((x, y) => x - y)[Math.floor(s20.length / 10)];
     // episodes of such outflows (separate when more than 20 trading days apart); the current one doesn't count as a past case
-    let eps = 0, lastI = -99; s20.forEach((x, i) => { if (x <= p10) { if (i - lastI > 20) eps++; lastI = i; } });
+    let eps = 0, lastI = -99, epI = 0; s20.forEach((x, i) => { if (x <= p10) { if (i - lastI > 20) { eps++; epI = i; } lastI = i; } });
     const extreme = now < 0 && rank <= .1; if (extreme) eps--;
-    etf = { now, cur: now * p, s5, streak, extreme, eps, d };
+    etf = { now, cur: now * p, s5, streak, extreme, eps, d, ep: ef[epI + 19][0] };   // ep: start date of the latest such episode
   }
   const btcK = x => (x < 0 ? "−" : "+") + (Math.abs(x) >= 1e4 ? (Math.abs(x) / 1e3).toFixed(1) + "k" : fmtInt(Math.abs(x))) + " BTC";
   add({ g: "sent", name: "ETF flows (20 days)", w: 0, disp: etf && btcK(etf.now), score: etf ? pctScore(s20, etf.now) : null,
@@ -1299,9 +1303,9 @@ function render() {
   $("piWarn").hidden = !showPi;
   if (showPi) $("piWarn").textContent = pi >= 1 ? "Bitcoin's Pi Cycle Top has crossed. In past cycles this happened within days of the top. Sell option: about 20% of your Bitcoin, once; buy back from Strong accumulate (70+)." : `Bitcoin's Pi Cycle Top is close to crossing (${pi.toFixed(2)} of 1.00). Top risk is rising.`;
   // unusually large Bitcoin ETF outflows: a context flag, not part of the score
-  const ef = A.BTC.m && A.BTC.cur === G.cur ? A.BTC.m.etf : null, showEtf = !!(ef && ef.extreme) && (ov || G.view === "BTC");
+  const ef = A.BTC.m && A.BTC.cur === G.cur ? A.BTC.m.etf : null, showEtf = !!(ef && ef.extreme) && (ov || G.view === "BTC") && store.get("etfX") !== ef.ep;
   $("etfFlag").hidden = !showEtf;
-  if (showEtf) $("etfFlag").textContent = `Unusually large Bitcoin ETF outflows: about ${fmtBig(-ef.cur)} left over 20 trading days, among the largest 10% since 2024. In the past this came near local lows, but only ${ef.eps} times: context, not a signal.`;
+  if (showEtf) $("etfTxt").textContent = `Unusually large Bitcoin ETF outflows: about ${fmtBig(-ef.cur)} left over 20 trading days, among the largest 10% since 2024. In the past this came near local lows, but only ${ef.eps} times: context, not a signal.`;
   if (ov) renderOverview(); else renderDetail(G.view);
   renderSources();
 }
@@ -1590,6 +1594,7 @@ if ("ontouchstart" in window) {
 }
 const dlg = $("srcDlg");
 $("srcBtn").addEventListener("click", () => { renderSources(); if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", ""); });
+$("etfX").addEventListener("click", () => { const ef = A.BTC.m && A.BTC.m.etf; if (ef) store.set("etfX", ef.ep); $("etfFlag").hidden = true; });   // hidden until a new outflow episode
 $("srcClose").addEventListener("click", () => dlg.close ? dlg.close() : dlg.removeAttribute("open"));
 dlg.addEventListener("click", e => { if (e.target === dlg && dlg.close) dlg.close(); });   // tap outside the box closes it
 // Remember which signal groups are open, so the every-minute refresh doesn't close them.
