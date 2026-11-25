@@ -80,6 +80,7 @@ button:disabled { opacity: .7; cursor: progress }
 .news a { display: block; color: var(--fg); text-decoration: none; padding: 7px 0; border-top: 1px solid color-mix(in srgb, var(--accent) 25%, transparent) }
 .news a::after { content: " ›"; color: var(--accent) }
 .tabs a { position: relative } .tabs a.news::after { content: ""; position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent) }
+.banner.hint { border-color: var(--z3); background: color-mix(in srgb, var(--z3) 12%, transparent) }
 .banner.warn { border-color: var(--z1); background: color-mix(in srgb, var(--z1) 12%, transparent) }
 
 /* Verdict */
@@ -398,6 +399,7 @@ a.coin:hover { border-color: var(--accent) }
   <div id="err" class="banner" hidden></div>
   <div id="news" class="banner news" hidden></div>
   <div id="piWarn" class="banner warn" hidden></div>
+  <div id="etfFlag" class="banner hint" hidden></div>
 
   <!-- ================= OVERVIEW ================= -->
   <div id="viewOverview" class="wrap" style="max-width:none">
@@ -502,7 +504,7 @@ a.coin:hover { border-color: var(--accent) }
     <p id="status" class="status"><span class="dot"></span>Loading market data…</p>
     <p id="srcSum"></p>
     <ul class="src-list" id="sources"></ul>
-    <p class="dlg-note">Fetched directly by your browser. Prices: Kraken, with Binance and then Bitstamp as fallbacks, and USD prices converted at the frankfurter.dev rate when needed. Bitcoin on-chain: mempool.space, blockchain.com, bitcoin-data.com. Ethereum MVRV: Coin Metrics community data. Ethereum fee income and value locked: DefiLlama. Bitcoin dominance: CoinGecko. Fear &amp; Greed: alternative.me. Funding: Binance futures, with Bybit and then OKX as fallbacks.</p>
+    <p class="dlg-note">Fetched directly by your browser. Prices: Kraken, with Binance and then Bitstamp as fallbacks, and USD prices converted at the frankfurter.dev rate when needed. Bitcoin on-chain and ETF flows: mempool.space, blockchain.com, bitcoin-data.com. Ethereum MVRV: Coin Metrics community data. Ethereum fee income and value locked: DefiLlama. Bitcoin dominance: CoinGecko. Fear &amp; Greed: alternative.me. Funding: Binance futures, with Bybit and then OKX as fallbacks.</p>
   </dialog>
 </div>
 
@@ -675,6 +677,11 @@ const EXTRAS = {
     let row; try { row = lastRow(await getJSON("https://bitcoin-data.com/v1/realized-price/last")); }
     catch { row = lastRow(await getJSON("https://bitcoin-data.com/v1/realized-price")); }
     const v = firstNum(row, /realized/i); if (!(v > 0)) throw new Error("unexpected format"); return { v, d: asOf(row) }; } },
+  // daily net flows of the US spot Bitcoin ETFs, in BTC, since they launched (Jan 2024); flows are daily figures, so once a day is enough
+  etf: { label: "Bitcoin ETF flows (bitcoin-data.com)", ttl: 24 * HOUR, noForce: true, load: async () => {
+    const j = await getJSON("https://bitcoin-data.com/v1/etf-flow-btc");
+    const rows = (Array.isArray(j) ? j : []).map(r => [String(r.d || "").slice(0, 10), +r.etfFlow]).filter(r => /^\d{4}-\d\d-\d\d$/.test(r[0]) && isFinite(r[1]));
+    if (rows.length < 120) throw new Error("not enough data"); return rows; } },
   fng: { label: "Fear & Greed (alternative.me)", ttl: HOUR, load: async () => {
     const j = await getJSON("https://api.alternative.me/fng/?limit=1");
     const d = j.data && j.data[0]; if (!d) throw new Error("unexpected format"); return { v: +d.value, cls: d.value_classification }; } }
@@ -816,6 +823,7 @@ const WHAT = {
   "Puell Multiple": "Miners' daily income divided by its one-year average. Low values mean miners are under financial stress, which has happened near market bottoms.",
   "Hash Ribbons": "Compares the 30-day and 60-day averages of the network's computing power. When the 30-day falls below the 60-day, miners are switching off; the buy signal comes when that ends.",
   "Fear & Greed Index": "A 0–100 reading of crypto market mood published by alternative.me, built from volatility, momentum, social media and surveys. Low means fear, high means greed.",
+  "ETF flows (20 days)": "Net money moving into (+) or out of (−) the US spot Bitcoin ETFs over the last 20 trading days, in BTC. Flows mostly follow the price: money comes in after rises and leaves after drops.",
   "Perp funding rate (8h)": "The fee that traders in perpetual futures pay each other every 8 hours. Positive means buyers using borrowed money are paying; negative means sellers are.",
   "Network fee income": "Fees paid to use the Ethereum network over the last 30 days, compared with the 2-year average. It measures how busy the network is.",
   "Value locked in apps": "The total money deposited in apps built on this network, such as lending and trading apps, as tracked by DefiLlama.",
@@ -942,6 +950,25 @@ function computeBTC(a) {
   add({ g: "sent", name: "Perp funding rate (8h)", w: .05, disp: fr && `${(fr.v * 100).toFixed(4)}%`, score: fr ? pw(fr.v, [[-0.0003, 95], [-0.0001, 80], [0, 65], [0.0001, 45], [0.0003, 20], [0.0008, 0]]) : null,
     note: !fr ? "Couldn't load (see data sources below)." : (fr.v < 0 ? "Negative: shorts are paying longs, the crowd is betting on a drop. Often near local lows." : fr.v <= 0.00012 ? "Around the normal 0.01%: leverage is balanced." : "High: leveraged longs are crowded, which raises the risk of a sharp flush.") + ` Source: ${fr.src}.` });
 
+  // ETF flows: info only (under 3 years of data, so not backtested over a full cycle). Flagged when the 20-day outflow is among the largest 10% since launch.
+  let etf = null; const ef = E.etf, s20 = [];
+  if (Array.isArray(ef) && ef.length >= 120) {
+    const v = ef.map(r => r[1]); for (let i = 19; i < v.length; i++) s20.push(v.slice(i - 19, i + 1).reduce((x, y) => x + y, 0));
+    const now = last(s20), s5 = v.slice(-5).reduce((x, y) => x + y, 0), sg = Math.sign(last(v)) || 1; let streak = 0;
+    for (let i = v.length - 1; i >= 0 && Math.sign(v[i]) === sg; i--) streak++;
+    const rank = s20.filter(x => x < now).length / s20.length, d = last(ef)[0], p10 = [...s20].sort((x, y) => x - y)[Math.floor(s20.length / 10)];
+    // episodes of such outflows (separate when more than 20 trading days apart); the current one doesn't count as a past case
+    let eps = 0, lastI = -99; s20.forEach((x, i) => { if (x <= p10) { if (i - lastI > 20) eps++; lastI = i; } });
+    const extreme = now < 0 && rank <= .1; if (extreme) eps--;
+    etf = { now, cur: now * p, s5, streak, extreme, eps, d };
+  }
+  const btcK = x => (x < 0 ? "−" : "+") + (Math.abs(x) >= 1e4 ? (Math.abs(x) / 1e3).toFixed(1) + "k" : fmtInt(Math.abs(x))) + " BTC";
+  add({ g: "sent", name: "ETF flows (20 days)", w: 0, disp: etf && btcK(etf.now), score: etf ? pctScore(s20, etf.now) : null,
+    note: !etf ? "Couldn't load (see data sources below)." : `About ${fmtBig(Math.abs(etf.cur))} ${etf.now < 0 ? "out" : "in"} over 20 trading days; ${btcK(etf.s5)} over the last 5. ` +
+      `${etf.streak} day${etf.streak > 1 ? "s" : ""} of ${last(ef)[1] < 0 ? "outflows" : "inflows"} in a row. ` +
+      (etf.extreme ? `Among the largest 10% of outflows since the ETFs launched: in the past this came near local lows, but only ${etf.eps} times.` : etf.now < 0 ? "Net outflows, within the normal range." : "Net inflows; large inflows haven't marked tops so far.") +
+      ` Not weighted: under 3 years of data.` + asOfTxt({ d: etf.d }) });
+
   const { score, groups } = finish(sig, GROUPS, pi >= 0.95 ? 20 : null);   // Pi Cycle Top near 1 caps the score
 
   const low90 = Math.min(...a.daily.slice(-90).map(x => x.l));
@@ -959,7 +986,7 @@ function computeBTC(a) {
     { name: "200-week MA", desc: "Cycle floor, held in every bear market", px: ma200w, strength: 3, c: "--ma200w" },
     { name: "Power-law floor", desc: `${PL_FLOOR} × power-law fair value, the corridor's historic floor`, px: plFair && plFair * PL_FLOOR, strength: 3, c: "--pl" }
   ].filter(l => l.px > 0).sort((a, b) => b.px - a.px);
-  a.m = { ath, sig, score, groups, pi, fx, k: { dd, r200w, r2y, rsiW, ratioSc: null } };
+  a.m = { ath, sig, score, groups, pi, etf, fx, k: { dd, r200w, r2y, rsiW, ratioSc: null } };
   a.levels = levels;
 }
 
@@ -1099,6 +1126,7 @@ function computeAll() {
 
 /* ---------- formatting ---------- */
 const fmtCur = (v, d) => v == null || !isFinite(v) ? "—" : new Intl.NumberFormat(undefined, { style: "currency", currency: G.cur, maximumFractionDigits: d ?? (v < 10 ? 4 : v < 1000 ? 2 : 0) }).format(v);
+const fmtBig = v => v == null || !isFinite(v) ? "—" : new Intl.NumberFormat(undefined, { style: "currency", currency: G.cur, notation: "compact", maximumFractionDigits: 1 }).format(v);
 const fmtInt = v => new Intl.NumberFormat().format(Math.round(v));
 const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const lvName = n => n === "Bull market support band" ? '<span class="d-only">Bull market support band</span><span class="ph-only">Bull support band</span>' : esc(n);
@@ -1270,6 +1298,10 @@ function render() {
   const pi = A.BTC.m && A.BTC.cur === G.cur ? A.BTC.m.pi : null, showPi = pi >= 0.95 && (ov || G.view === "BTC");
   $("piWarn").hidden = !showPi;
   if (showPi) $("piWarn").textContent = pi >= 1 ? "Bitcoin's Pi Cycle Top has crossed. In past cycles this happened within days of the top. Sell option: about 20% of your Bitcoin, once; buy back from Strong accumulate (70+)." : `Bitcoin's Pi Cycle Top is close to crossing (${pi.toFixed(2)} of 1.00). Top risk is rising.`;
+  // unusually large Bitcoin ETF outflows: a context flag, not part of the score
+  const ef = A.BTC.m && A.BTC.cur === G.cur ? A.BTC.m.etf : null, showEtf = !!(ef && ef.extreme) && (ov || G.view === "BTC");
+  $("etfFlag").hidden = !showEtf;
+  if (showEtf) $("etfFlag").textContent = `Unusually large Bitcoin ETF outflows: about ${fmtBig(-ef.cur)} left over 20 trading days, among the largest 10% since 2024. In the past this came near local lows, but only ${ef.eps} times: context, not a signal.`;
   if (ov) renderOverview(); else renderDetail(G.view);
   renderSources();
 }
