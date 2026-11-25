@@ -1664,9 +1664,13 @@ fullLoad();
 const APP_URL = "https://dan-e-l.github.io/satoshilevels/";
 $("shareBtn").addEventListener("click", async () => {
   const msg = $("shareMsg"); msg.textContent = "";
-  const data = { title: "Satoshi Levels", text: "Buy levels and valuation scores for Bitcoin, Ethereum and Solana.", url: APP_URL };
-  if (navigator.share) { try { await navigator.share(data); } catch (e) { if (e && e.name !== "AbortError") msg.textContent = APP_URL; } return; }
-  try { await navigator.clipboard.writeText(APP_URL); msg.textContent = "Link copied."; }
+  const text = "Satoshi Levels\n\nIgnore the FUD, follow the data. One 0\u2013100 buy score for BTC, ETH and SOL from on-chain, valuation, momentum and sentiment signals. No account, no backend.\n\n" +
+    "Add it to your home screen:\n" +
+    "1. Tap the link below. On iPhone open it in Safari, on Android in Chrome.\n" +
+    "2. iPhone: tap the Share button, then Add to Home Screen.\n" +
+    "Android: tap the \u22EE menu, then Install app (or Add to Home screen).";
+  if (navigator.share) { try { await navigator.share({ title: "Satoshi Levels", text, url: APP_URL }); } catch (e) { if (e && e.name !== "AbortError") msg.textContent = APP_URL; } return; }
+  try { await navigator.clipboard.writeText(text + "\n\n" + APP_URL); msg.textContent = "Link and instructions copied."; }
   catch { msg.textContent = APP_URL; }
 });
 })();
