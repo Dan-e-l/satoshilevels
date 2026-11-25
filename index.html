@@ -777,14 +777,15 @@ const pctScore = (prior, cur) => 100 * (1 - prior.filter(v => v < cur).length / 
 const powerLawUSD = t => 1.0117e-17 * Math.pow((t - GENESIS) / 864e5, 5.82);
 const PL_FLOOR = 0.42;
 
-const ZONES = [
-  { min: 85, name: "Generational buy", mult: "3×", c: "--z5", text: "Price is at or below long-term cycle floors. Historically the best entries.", hist: "100% of days in this zone were higher a year later (median +96%)" },
-  { min: 70, name: "Strong accumulate", mult: "2×", c: "--z4", text: "Well below trend. Increase buys and set limit orders lower down.", hist: "99% of days in this zone were higher a year later (median +125%)" },
-  { min: 55, name: "Accumulate", mult: "1.5×", c: "--z3", text: "Cheaper than usual. A good time to stack a bit extra.", hist: "95% of days in this zone were higher a year later (median +165%)" },
-  { min: 35, name: "Fair value", mult: "1×", c: "--z2", text: "Around trend. Keep your normal recurring buy.", hist: "75% of days in this zone were higher a year later (median +59%)" },
-  { min: 20, name: "Expensive", mult: "0.5×", sell: "2%", c: "--z1", text: "Stretched above trend. Buy smaller; taking some profit is an option.", hist: "only 32% of days in this zone were higher a year later (median −16%)" },
-  { min: -1, name: "Overheated", mult: "0×", sell: "5%", c: "--z0", text: "Far above every support line. Historically near cycle tops; stop buying and consider taking profit.", hist: "47% of days in this zone were higher a year later (median −9%)" }
+const ZONES = [   // mult/text: Bitcoin; multAlt/textAlt: Ethereum and Solana, where the weaker zones did clearly worse in the backtest
+  { min: 85, name: "Generational buy", mult: "3×", multAlt: "3×", c: "--z5", text: "Price is at or below long-term cycle floors. Historically the best entries.", hist: "100% of days in this zone were higher a year later (median +95%)" },
+  { min: 70, name: "Strong accumulate", mult: "2×", multAlt: "2×", c: "--z4", text: "Well below trend. Increase buys and set limit orders lower down.", hist: "96% of days in this zone were higher a year later (median +124%)" },
+  { min: 55, name: "Accumulate", mult: "1.5×", multAlt: "1×", c: "--z3", text: "Cheaper than usual. A good time to stack a bit extra.", textAlt: "Cheaper than usual. Keep your normal recurring buy.", hist: "94% of days in this zone were higher a year later (median +148%)" },
+  { min: 35, name: "Fair value", mult: "0.5×", multAlt: "0×", c: "--z2", text: "Around trend. Buy half your normal amount: the odds here were only fair.", textAlt: "Around trend. Pause buying: for this coin the odds from here were poor.", hist: "66% of days in this zone were higher a year later (median +49%)" },
+  { min: 20, name: "Expensive", mult: "0×", multAlt: "0×", sell: "2%", c: "--z1", text: "Stretched above trend. Pause buying; taking some profit is an option.", hist: "only 32% of days in this zone were higher a year later (median −23%)" },
+  { min: -1, name: "Overheated", mult: "0×", multAlt: "0×", sell: "5%", c: "--z0", text: "Far above every support line. Historically near cycle tops; stop buying and consider taking profit.", hist: "49% of days in this zone were higher a year later (median −4%)" }
 ];
+const multFor = (sym, z) => sym === "BTC" ? z.mult : z.multAlt;
 const zoneFor = s => ZONES.find(z => s >= z.min);
 // Score curves of the price-based indicators, shared by the live model and the score-zone history in the chart
 const PB = {
@@ -990,16 +991,16 @@ function computeBTC(a) {
     { name: "200-week MA", desc: "Cycle floor, held in every bear market", px: ma200w, strength: 3, c: "--ma200w" },
     { name: "Power-law floor", desc: `${PL_FLOOR} × power-law fair value, the corridor's historic floor`, px: plFair && plFair * PL_FLOOR, strength: 3, c: "--pl" }
   ].filter(l => l.px > 0).sort((a, b) => b.px - a.px);
-  a.m = { ath, sig, score, groups, pi, etf, fx, k: { dd, r200w, r2y, rsiW, ratioSc: null } };
+  a.m = { ath, sig, score, groups, pi, etf, fx, rp, conf: rp ? p <= rp : null, k: { dd, r200w, r2y, rsiW, ratioSc: null } };
   a.levels = levels;
 }
 
 /* ---------- Ethereum and Solana model ---------- */
 // Backtest (2015–2026 for BTC, 2018–2026 for ETH): share of days higher one year later, and the median one-year change, per zone.
 const ZHIST = {
-  ETH: { "Generational buy": "88% of days in this zone were higher a year later (median +76%)", "Strong accumulate": "82% of days in this zone were higher a year later (median +47%)",
-         "Accumulate": "71% of days in this zone were higher a year later (median +60%)", "Fair value": "only 34% of days in this zone were higher a year later (median −16%)",
-         "Expensive": "only 15% of days in this zone were higher a year later (median −45%)", "Overheated": "35% of days in this zone were higher a year later (median −50%)" },
+  ETH: { "Generational buy": "90% of days in this zone were higher a year later (median +78%)", "Strong accumulate": "81% of days in this zone were higher a year later (median +46%)",
+         "Accumulate": "65% of days in this zone were higher a year later (median +55%)", "Fair value": "only 30% of days in this zone were higher a year later (median −28%)",
+         "Expensive": "only 14% of days in this zone were higher a year later (median −47%)", "Overheated": "41% of days in this zone were higher a year later (median −45%)" },
   SOL: null
 };
 const ALT_GROUPS = [
@@ -1156,7 +1157,7 @@ function renderOverview() {
     $("ovText").textContent = have.length < 3 ? `Based on ${have.join(", ")} only; the rest didn't load.` : `Cheapest by its own history right now: ${COINS[best].name} (${Math.round(A[best].m.score)}).`;
   }
   $("ovLines").innerHTML = SYMS.map(s => { if (!ready(s)) return `<div class="ovl"><strong>${COINS[s].name}</strong><span class="muted">not loaded</span></div>`;
-    const a = A[s], z = zoneFor(a.m.score); return `<div class="ovl"><strong>${COINS[s].name}</strong><span class="num muted">${fmtCur(a.spot)}</span><span class="zn" style="color:var(${z.c})">${z.name}</span><span class="sc"><span class="num">${Math.round(a.m.score)}</span> · buy <span class="num">${z.mult}</span>${z.sell ? ` · sell <span class="num">${z.sell}</span>/mo` : ""}</span></div>`; }).join("");
+    const a = A[s], z = zoneFor(a.m.score); return `<div class="ovl"><strong>${COINS[s].name}</strong><span class="num muted">${fmtCur(a.spot)}</span><span class="zn" style="color:var(${z.c})">${z.name}</span><span class="sc"><span class="num">${Math.round(a.m.score)}</span> · buy <span class="num">${multFor(s, z)}</span>${z.sell ? ` · sell <span class="num">${z.sell}</span>/mo` : ""}</span></div>`; }).join("");
 
   // cards
   $("ovCards").innerHTML = SYMS.map(s => { const c = COINS[s], a = A[s];
@@ -1165,7 +1166,7 @@ function renderOverview() {
     return `<a class="panel coin" href="#${s.toLowerCase()}" aria-label="Open ${c.name} details">
       <div class="hd"><span class="nm"><span class="g">${c.glyph}</span>${c.name}</span><span class="chg">${chgHTML(chg24(a))}</span></div>
       <div class="pxrow"><div class="px num">${fmtCur(a.spot)}</div><canvas data-spark="${s}"></canvas></div>
-      <div class="sc"><b style="color:var(${z.c})">${Math.round(a.m.score)}</b><span class="zn" style="color:var(${z.c})">${z.name}</span><span class="muted">buy ${z.mult}${z.sell ? ` · sell ${z.sell}/mo` : ""}</span></div>
+      <div class="sc"><b style="color:var(${z.c})">${Math.round(a.m.score)}</b><span class="zn" style="color:var(${z.c})">${z.name}</span><span class="muted">buy ${multFor(s, z)}${z.sell ? ` · sell ${z.sell}/mo` : ""}</span></div>
       <div class="gauge mini ph-only"><div class="pin" style="left:${clamp(a.m.score, 0, 100)}%"></div></div>
       <div class="groups d-only" style="margin-top:0">${a.m.groups.filter(g => g.weight).map(g => { const zz = g.score == null ? null : zoneFor(g.score);
         return `<div class="grp"><span>${g.name}</span><div class="bar"><i style="width:${g.score ?? 0}%;background:var(${zz ? zz.c : "--muted"})"></i></div><span class="num">${g.score == null ? "n/a" : Math.round(g.score)}</span></div>`; }).join("")}</div>
@@ -1178,7 +1179,7 @@ function renderOverview() {
   const R = [
     ["Price", a => fmtCur(a.spot)], ["24 hours", a => chgHTML(chg24(a))],
     ["Score", a => `<strong>${Math.round(a.m.score)}</strong>`], ["Zone", a => { const z = zoneFor(a.m.score); return `<span style="color:var(${z.c})">${z.name}</span>`; }],
-    ['<span class="lg">Suggested buy size</span><span class="sm">Buy size</span>', a => zoneFor(a.m.score).mult],
+    ['<span class="lg">Suggested buy size</span><span class="sm">Buy size</span>', (a, s) => multFor(s, zoneFor(a.m.score))],
     ["Sell option", a => { const z = zoneFor(a.m.score); return z.sell ? z.sell + "/mo" : "—"; }],
     ['<span class="lg">Below all-time high</span><span class="sm">Below high</span>', a => "−" + a.m.k.dd.toFixed(0) + "%"],
     ['<span class="lg">Price ÷ 200-week MA</span><span class="sm">200-week MA</span>', a => a.m.k.r200w ? a.m.k.r200w.toFixed(2) + "×" : "n/a"],
@@ -1224,9 +1225,9 @@ function renderDetail(sym) {
   const z = zoneFor(m.score), scored = m.sig.filter(s => s.w), have = scored.filter(s => s.score != null).length;
   $("compLbl").textContent = `${have} of ${scored.length} indicators`;
   $("zoneName").textContent = z.name; $("zoneName").style.color = `var(${z.c})`;
-  $("zoneText").textContent = `${sym === "BTC" ? z.text : z.text.replace("long-term cycle floors", "long-term averages")} ${zoneHist(sym, z)}`;
+  $("zoneText").textContent = `${sym === "BTC" ? z.text : (z.textAlt || z.text).replace("long-term cycle floors", "long-term averages")} ${zoneHist(sym, z)}${z.min === 85 && m.conf === false ? ` Not yet confirmed on-chain: price is still ${((p / m.rp - 1) * 100).toFixed(0)}% above the realized price (${fmtCur(m.rp)}), and every past cycle bottom went below it.` : ""}`;
   $("pin").style.left = clamp(m.score, 0, 100) + "%";
-  $("mult").textContent = z.mult; $("mult").style.setProperty("--zc", `var(${z.c})`);
+  $("mult").textContent = multFor(sym, z); $("mult").style.setProperty("--zc", `var(${z.c})`);
   $("sellBox").hidden = !z.sell;
   if (z.sell) { $("sellPct").textContent = z.sell; $("sellPct").style.setProperty("--zc", `var(${z.c})`); }
   $("score").textContent = Math.round(m.score);
@@ -1276,12 +1277,12 @@ const STRENGTH = ["", "Moderate", "Strong", "Very strong"];
 function info(k) {
   const [kind, id] = String(k).split(":"), sym = G.view, a = A[sym], m = a && a.m;
   if (kind === "zones") return { title: "Score zones", html: `<p>Each coin gets a score from 0 to 100: the higher, the cheaper it is compared with its own history.</p>
-    <table class="ztab"><thead><tr><th>Score</th><th>Zone</th><th class="r">Buy</th></tr></thead><tbody>${ZONES.map((z, i) => { const hi = i ? ZONES[i - 1].min : 101, cur = m && m.score != null && m.score >= z.min && m.score < hi;
-      return `<tr${cur ? ' class="cur"' : ""}><td class="num">${i ? Math.max(0, z.min) + "–" + (hi - 1) : z.min + "–100"}</td><td style="color:var(${z.c});font-weight:600">${z.name}${cur ? ' <span class="here">now</span>' : ""}</td><td class="r num">${z.mult}</td></tr>`; }).join("")}</tbody></table>
-    <p class="muted">Buy: multiply your normal recurring buy. Sell option: about 2% of your holdings per month in Expensive, 5% in Overheated; tap Suggested DCA size for details.${G.view === "BTC" ? " A Pi Cycle Top reading of 0.95 or more caps the score at 20." : G.view === "overview" ? " For Bitcoin, a Pi Cycle Top reading of 0.95 or more caps the score at 20." : ""}</p>` };
-  if (kind === "dca") return { title: "Buy and sell sizes", html: `<p><strong>Buy.</strong> The multiplier scales your normal recurring buy: at 2× you buy twice your usual amount, at 0× you skip it.</p>
+    <table class="ztab"><thead><tr><th>Score</th><th>Zone</th><th class="r">BTC</th><th class="r">ETH, SOL</th></tr></thead><tbody>${ZONES.map((z, i) => { const hi = i ? ZONES[i - 1].min : 101, cur = m && m.score != null && m.score >= z.min && m.score < hi;
+      return `<tr${cur ? ' class="cur"' : ""}><td class="num">${i ? Math.max(0, z.min) + "–" + (hi - 1) : z.min + "–100"}</td><td style="color:var(${z.c});font-weight:600">${z.name}${cur ? ' <span class="here">now</span>' : ""}</td><td class="r num">${z.mult}</td><td class="r num">${z.multAlt}</td></tr>`; }).join("")}</tbody></table>
+    <p class="muted">The two columns are the buy size: multiply your normal recurring buy. Ethereum and Solana get smaller sizes in the middle zones, because buying there paid off far less often than for Bitcoin. Sell option: about 2% of your holdings per month in Expensive, 5% in Overheated; tap Suggested DCA size for details.${G.view === "BTC" ? " A Pi Cycle Top reading of 0.95 or more caps the score at 20." : G.view === "overview" ? " For Bitcoin, a Pi Cycle Top reading of 0.95 or more caps the score at 20." : ""}</p>` };
+  if (kind === "dca") return { title: "Buy and sell sizes", html: `<p><strong>Buy.</strong> The multiplier scales your normal recurring buy: at 2× you buy twice your usual amount, at 0× you skip it. The sizes are set so that you only buy where it paid off in most past cases: Bitcoin was higher two years later on 84% of Fair value days but only 45% of Expensive days; Ethereum on 75% of Accumulate days and 47% of Fair value days. So Bitcoin gets 0.5× in Fair value and 0× above it, Ethereum and Solana 1× in Accumulate and 0× from Fair value up.</p>
     <p><strong>Sell option.</strong> In Expensive, sell about 2% of your holdings per month; in Overheated, about 5%. Keep the cash. Once the score is back at Strong accumulate (70+), put about 10% of that cash in each period on top of your normal buy. When Bitcoin's Pi Cycle Top crosses, selling about 20% once has also helped.</p>
-    <p><strong>Backtest</strong> on 4-year windows, compared with buying only: for Bitcoin since 2015 the sell option came out ahead in 80% of windows (typically +11%, worst −5%); for Ethereum since 2018 in 89% (typically +13%, worst −15%). Pi Cycle crosses (2013, 2017, 2021) were never worse, but there were only four. Selling without buying back later did worse for Bitcoin, because it kept rising.</p>
+    <p><strong>Backtest</strong> on 4-year windows, compared with buying only: for Bitcoin since 2015 the sell option came out ahead in 78% of windows (typically +11%, worst −5%); for Ethereum since 2018 in 90% (typically +7%, worst −16%). Pi Cycle crosses (2013, 2017, 2021) were never worse, but there were only four. Selling without buying back later did worse for Bitcoin, because it kept rising.</p>
     <p class="muted">Selling is an option, not a signal: the model was built to find good buys, and the last top (October 2025) only reached Expensive. Fees and taxes are not included. Solana could not be backtested.</p>` };
   if (!m) return null;
   if (kind === "grp") { const g = m.groups.find(x => x.key === id); if (!g) return null;
@@ -1339,9 +1340,12 @@ function renderNews() {
   const news = store.get("news", {}), lines = [];
   for (const s of SYMS) { const n = news[s]; document.querySelector(`#tabs a[data-v="${s}"]`).classList.toggle("news", !!n); if (!n) continue;
     const nm = COINS[s].name, add = t => lines.push(`<a href="#${s.toLowerCase()}">${t}</a>`), L = Object.entries(n.lv || {}).map(([name, v]) => ({ name, ...v }));
-    if (n.z) add(`<strong>${nm}</strong>: ${esc(n.z.from)} → <strong>${esc(n.z.to)}</strong> <span class="muted">(score ${n.z.fs} → ${n.z.ts})</span>`);
+    if (n.z) add(`<strong>${nm}</strong>: ${esc(n.z.from)} → <strong>${esc(n.z.to)}</strong> <span class="muted">(score ${n.z.fs} → ${n.z.ts})</span>${s === "BTC" && n.z.to === "Generational buy" && A.BTC.m && A.BTC.m.conf === false ? " · not yet confirmed on-chain: price is still above the realized price" : ""}`);
     const txt = { hit: v => `<strong>${nm}</strong> reached the ${esc(v.name)} level at <span class="num">${usdFmt(v.usd)}</span>`, touch: v => `<strong>${nm}</strong> touched the ${esc(v.name)} level at <span class="num">${usdFmt(v.usd)}</span> and recovered`,
       back: v => `<strong>${nm}</strong> moved back above the ${esc(v.name)} level <span class="num">(${usdFmt(v.usd)})</span>` };
+    // Bitcoin at or below its realized price is the on-chain confirmation of a cycle-bottom zone: it gets its own line
+    const ci = s === "BTC" ? L.findIndex(v => v.name === "Realized price" && v.k !== "touch") : -1;
+    if (ci >= 0) { const v = L.splice(ci, 1)[0]; add(v.k === "hit" ? `<strong>Bitcoin</strong> fell below its realized price <span class="num">(${usdFmt(v.usd)})</span>: on-chain confirmation. Every past cycle bottom was below this level.` : `<strong>Bitcoin</strong> moved back above its realized price <span class="num">(${usdFmt(v.usd)})</span>: the on-chain confirmation has ended.`); }
     if (L.length <= 3) L.forEach(v => add(txt[v.k](v)));
     else { const dn = L.filter(v => v.k !== "back").sort((p, q) => p.usd - q.usd), up = L.filter(v => v.k === "back").sort((p, q) => q.usd - p.usd);
       if (dn.length === 1) add(txt[dn[0].k](dn[0])); else if (dn.length) add(`<strong>${nm}</strong> reached ${dn.length} ladder levels, the lowest: ${esc(dn[0].name)} at <span class="num">${usdFmt(dn[0].usd)}</span>`);
