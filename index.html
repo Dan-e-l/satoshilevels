@@ -143,6 +143,7 @@ canvas { width: 100%; height: 100%; display: block }
 footer { font-size: .8rem; color: var(--accent); display: grid; gap: 8px }
 footer p { margin: 0; max-width: 90ch }
 footer .copy { color: var(--muted) }
+footer .share { min-height: 44px; padding: 8px 16px; border-radius: 10px; font-weight: 600 }
 .src-list { display: flex; flex-wrap: wrap; gap: 6px 16px; list-style: none; padding: 0; margin: 0 }
 .src-list .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; background: var(--muted) }
 .src-list .ok .dot { background: var(--z5) } .src-list .bad .dot { background: var(--z0) }
@@ -496,6 +497,7 @@ a.coin:hover { border-color: var(--accent) }
 
   <footer>
     <p><strong>Past behaviour doesn't guarantee future behaviour. This is a decision aid, not financial advice.</strong></p>
+    <p><button type="button" id="shareBtn" class="share">Share the app</button> <span id="shareMsg" class="muted" aria-live="polite"></span></p>
     <p class="copy">© 2026 Dan-e-l</p>
   </footer>
   <dialog id="infoDlg" aria-labelledby="infoTitle">
@@ -1658,7 +1660,17 @@ if ("serviceWorker" in navigator && /^(https:|http:\/\/localhost|http:\/\/127\.)
 { const h = location.hash.replace("#", "").toUpperCase(), lastView = store.get("view", "overview"); G.view = COINS[h] ? h : !h && COINS[lastView] ? lastView : "overview"; }
 startView();
 fullLoad();
+// share: native share sheet where available, otherwise copy the link
+const APP_URL = "https://dan-e-l.github.io/satoshilevels/";
+$("shareBtn").addEventListener("click", async () => {
+  const msg = $("shareMsg"); msg.textContent = "";
+  const data = { title: "Satoshi Levels", text: "Buy levels and valuation scores for Bitcoin, Ethereum and Solana.", url: APP_URL };
+  if (navigator.share) { try { await navigator.share(data); } catch (e) { if (e && e.name !== "AbortError") msg.textContent = APP_URL; } return; }
+  try { await navigator.clipboard.writeText(APP_URL); msg.textContent = "Link copied."; }
+  catch { msg.textContent = APP_URL; }
+});
 })();
+
 </script>
 </body>
 </html>
