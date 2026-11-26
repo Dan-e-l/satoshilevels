@@ -39,6 +39,8 @@
 
 * { box-sizing: border-box }
 html, body { margin: 0 }
+/* no rubber-band bounce: on iPhones it dragged the bottom tab bar along; pull-to-refresh reads the finger itself, so it still works */
+html, body { overscroll-behavior-y: none }
 body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body);
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-top: calc(24px + env(safe-area-inset-top, 0px)); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)) }
 .wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 28px }
@@ -311,7 +313,9 @@ a.coin:hover { border-color: var(--accent) }
   .coin .pxrow { display: flex; align-items: center; justify-content: space-between; gap: 12px }
   .coin .pxrow canvas { width: 46%; height: 44px; flex: none }
   .coin .groups.d-only { display: none }
-  .coin .ft { display: flex; justify-content: space-between; align-items: baseline; gap: 4px 12px; flex-wrap: wrap }
+  /* the backtest note wraps in its own space, so "Details →" stays on the same line for every coin */
+  .coin .ft { display: flex; justify-content: space-between; align-items: baseline; gap: 12px }
+  .coin .ft .conf { flex: 1; min-width: 0 } .coin .ft .more { flex: none }
   .ph-only { display: block }
   span.ph-only { display: inline }
   .d-only { display: none }
@@ -1212,7 +1216,7 @@ function renderOverview() {
       <div class="groups d-only" style="margin-top:0">${a.m.groups.filter(g => g.weight).map(g => { const zz = g.score == null ? null : zoneFor(g.score);
         return `<div class="grp"><span>${g.name}</span><div class="bar"><i style="width:${g.score ?? 0}%;background:var(${zz ? zz.c : "--muted"})"></i></div><span class="num">${g.score == null ? "n/a" : Math.floor(g.score)}</span></div>`; }).join("")}</div>
       <div style="font-size:.85rem">${nl ? `Next buy level: <strong class="num">${fmtCur(nl.px)}</strong> <span class="num muted">(${((nl.px / a.spot - 1) * 100).toFixed(1)}%)</span> · ${lvName(nl.name)}` : "Price is below every level on the ladder."}</div>
-      <div class="ft"><div class="conf">${c.conf}</div><div class="more">Open ${c.name} details →</div></div></a>`; }).join("");
+      <div class="ft"><div class="conf">${c.conf}</div><div class="more">Details →</div></div></a>`; }).join("");
   document.querySelectorAll("canvas[data-spark]").forEach(cv => spark(cv, A[cv.dataset.spark]));
 
   // side by side
