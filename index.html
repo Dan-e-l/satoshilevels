@@ -510,7 +510,7 @@ a.coin:hover { border-color: var(--accent) }
     <p id="status" class="status"><span class="dot"></span>Loading market data…</p>
     <p id="srcSum"></p>
     <ul class="src-list" id="sources"></ul>
-    <p class="dlg-note">Fetched directly by your browser. Prices: Kraken, with Binance and then Bitstamp as fallbacks, and USD prices converted at the frankfurter.dev rate when needed. Bitcoin on-chain and ETF flows: mempool.space, blockchain.com, bitcoin-data.com. Ethereum MVRV: Coin Metrics community data. Ethereum fee income and value locked: DefiLlama. Bitcoin dominance: CoinGecko. Fear &amp; Greed: alternative.me. Funding: Binance futures, with Bybit and then OKX as fallbacks.</p>
+    <p class="dlg-note">Fetched directly by your browser. Prices: Kraken, with Binance and then Bitstamp as fallbacks, and USD prices converted at the frankfurter.dev rate when needed. Bitcoin on-chain and ETF flows: mempool.space, blockchain.com, bitcoin-data.com. Ethereum MVRV: Coin Metrics community data. Ethereum fee income and value locked: DefiLlama. Bitcoin dominance: CoinGecko. Fear &amp; Greed: alternative.me. US M2 money supply: Federal Reserve data via DBnomics. Funding: Binance futures, with Bybit and then OKX as fallbacks.</p>
   </dialog>
 </div>
 
@@ -688,6 +688,13 @@ const EXTRAS = {
     const j = await getJSON("https://bitcoin-data.com/v1/etf-flow-btc");
     const rows = (Array.isArray(j) ? j : []).map(r => [String(r.d || "").slice(0, 10), +r.etfFlow]).filter(r => /^\d{4}-\d\d-\d\d$/.test(r[0]) && isFinite(r[1]));
     if (rows.length < 120) throw new Error("not enough data"); return rows; } },
+  // US M2 money supply, monthly and seasonally adjusted (Federal Reserve H.6), via the DBnomics mirror: FRED itself doesn't allow reads from other sites
+  m2: { label: "US M2 money supply (DBnomics)", ttl: 24 * HOUR, load: async () => {
+    const j = await getJSON("https://api.db.nomics.world/v22/series/FED/H6_H6_M2/M2.M?observations=1");
+    const sr = j.series && j.series.docs && j.series.docs[0], ps = sr && sr.period, vs = sr && sr.value;
+    if (!Array.isArray(ps) || !Array.isArray(vs) || ps.length !== vs.length) throw new Error("unexpected format");
+    const rows = ps.map((p, i) => [String(p).slice(0, 7), +vs[i]]).filter(r => /^\d{4}-\d\d$/.test(r[0]) && r[1] > 0).slice(-16);
+    if (rows.length < 16) throw new Error("not enough data"); return rows; } },
   fng: { label: "Fear & Greed (alternative.me)", ttl: HOUR, load: async () => {
     const j = await getJSON("https://api.alternative.me/fng/?limit=1");
     const d = j.data && j.data[0]; if (!d) throw new Error("unexpected format"); return { v: +d.value, cls: d.value_classification }; } }
@@ -804,7 +811,7 @@ const GROUPS = [
   { key: "val", name: "Valuation", desc: "Where price sits against long-term trend lines" },
   { key: "mom", name: "Momentum", desc: "Is the trend turning? RSI and MACD" },
   { key: "chain", name: "On-chain", desc: "What holders and miners are doing" },
-  { key: "sent", name: "Sentiment", desc: "Crowd mood and leverage" }
+  { key: "sent", name: "Sentiment", desc: "Crowd mood, leverage and money supply" }
 ];
 
 /* ---------- indicator descriptions (what each one measures) ---------- */
@@ -831,6 +838,7 @@ const WHAT = {
   "Hash Ribbons": "Compares the 30-day and 60-day averages of the network's computing power. When the 30-day falls below the 60-day, miners are switching off; the buy signal comes when that ends.",
   "Fear & Greed Index": "A 0–100 reading of crypto market mood published by alternative.me, built from volatility, momentum, social media and surveys. Low means fear, high means greed.",
   "ETF flows (20 days)": "Net money moving into (+) or out of (−) the US spot Bitcoin ETFs over the last 20 trading days, in BTC. Flows mostly follow the price: money comes in after rises and leaves after drops.",
+  "US M2 money supply": "Growth over the past year of the US M2 money supply: cash, bank deposits and money market funds, as reported monthly by the Federal Reserve. A popular liquidity gauge for Bitcoin, but not a reliable one so far.",
   "Perp funding rate (8h)": "The fee that traders in perpetual futures pay each other every 8 hours. Positive means buyers using borrowed money are paying; negative means sellers are.",
   "Network fee income": "Fees paid to use the Ethereum network over the last 30 days, compared with the 2-year average. It measures how busy the network is.",
   "Value locked in apps": "The total money deposited in apps built on this network, such as lending and trading apps, as tracked by DefiLlama.",
@@ -975,6 +983,16 @@ function computeBTC(a) {
       `${etf.streak} day${etf.streak > 1 ? "s" : ""} of ${last(ef)[1] < 0 ? "outflows" : "inflows"} in a row. ` +
       (etf.extreme ? `Among the largest 10% of outflows since the ETFs launched: in the past this came near local lows, but only ${etf.eps} times.` : etf.now < 0 ? "Net outflows, within the normal range." : "Net inflows; large inflows haven't marked tops so far.") +
       ` Not weighted: under 3 years of data.` + asOfTxt({ d: etf.d }) });
+
+  // US M2 growth: info only. Checked 2014–2025 against Bitcoin a year later and found no link (rank correlation about 0.04).
+  const m2 = Array.isArray(E.m2) && E.m2.length >= 16 ? E.m2 : null, m2y = i => (m2[i][1] / m2[i - 12][1] - 1) * 100;
+  const m2Now = m2 && m2y(m2.length - 1), m2Prev = m2 && m2y(m2.length - 4),
+    m2Mon = m2 && new Date(m2[m2.length - 1][0] + "-15T12:00:00Z").toLocaleDateString("en-GB", { month: "short", year: "numeric", timeZone: "UTC" });
+  add({ g: "sent", name: "US M2 money supply", w: 0, disp: m2 && `${m2Now >= 0 ? "+" : "−"}${Math.abs(m2Now).toFixed(1)}% a year`, score: null,
+    note: !m2 ? "Couldn't load (see data sources below)." : `${m2Now >= 0 ? "Up" : "Down"} ${Math.abs(m2Now).toFixed(1)}% over the year to ${m2Mon}, ` +
+      (m2Now - m2Prev > 0.3 ? "faster than 3 months earlier" : m2Now - m2Prev < -0.3 ? "slower than 3 months earlier" : "about as fast as 3 months earlier") + ` (${m2Prev.toFixed(1)}%). ` +
+      "Not weighted: since 2014 it didn't predict Bitcoin's next year. Shrinking M2 in 2022–24 was followed by gains every time, and fast growth in 2020–22 mostly by losses. " +
+      "Monthly figures, published about 4 to 6 weeks after the month ends." });
 
   const { score, groups } = finish(sig, GROUPS, pi >= 0.95 ? 20 : null);   // Pi Cycle Top near 1 caps the score
 
