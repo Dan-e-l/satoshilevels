@@ -1320,10 +1320,10 @@ function checkNews() {
   const seen = store.get("seen", {}), news = store.get("news", {});
   for (const s of SYMS) { const a = A[s]; if (!ready(s) || a.saved) continue;
     const fx = G.cur === "USD" ? 1 : a.m.fx; if (!fx) continue;
-    const z = zoneFor(a.m.score).name, sc = Math.floor(a.m.score), last = a.daily[a.daily.length - 1], p = seen[s], n = news[s] || { lv: {} };
+    const z = zoneFor(a.m.score).name, sc = Math.floor(a.m.score * 10) / 10, last = a.daily[a.daily.length - 1], p = seen[s], n = news[s] || { lv: {} };
     const lv = {}; for (const l of a.levels) lv[l.name] = l.px >= a.spot ? 1 : 0;          // 1 = the price is at or below this level
     if (p) {
-      if (p.z !== z) { if (!n.z) n.z = { from: p.z, fs: p.sc }; n.z.to = z; n.z.ts = sc; if (n.z.from === z) delete n.z; }
+      if (p.z !== z) { if (!n.z) n.z = { from: p.z, fs: p.sc, fd: !!p.sd }; n.z.to = z; n.z.ts = sc; n.z.d = 1; if (n.z.from === z) delete n.z; }
       // lowest price since the last visit, so a level that was only touched in between is still noticed
       let low = a.spot; if (p.cur === G.cur) for (const d of a.daily) if (d.t > p.dt || (d.t === p.dt && d.l < p.dl * .9995)) low = Math.min(low, d.l);
       for (const l of a.levels) { if (!(l.name in p.lv)) continue; const was = p.lv[l.name], now = lv[l.name], o = n.lv[l.name]; let k = null;
@@ -1334,15 +1334,18 @@ function checkNews() {
         n.lv[l.name] = { k, usd: l.px / fx }; }
     }
     if (n.z || Object.keys(n.lv).length) news[s] = n; else delete news[s];
-    seen[s] = { z, sc, lv, dt: last.t, dl: last.l, cur: G.cur };
+    seen[s] = { z, sc, sd: 1, lv, dt: last.t, dl: last.l, cur: G.cur };
   }
   store.set("seen", seen); store.set("news", news); renderNews();
 }
+// scores in the zone note: one decimal, so a small move across a boundary reads as small (85.2 → 84.6)
+function zsc(z) { if (!z.d) return z.fs === z.ts ? "" : ` <span class="muted">(score ${z.fs} → ${z.ts})</span>`;   // note saved by an older version
+  const f = v => v == null ? "?" : (Math.floor(v * 10) / 10).toFixed(1); return ` <span class="muted">(score ${z.fd ? f(z.fs) : z.fs} → ${f(z.ts)})</span>`; }
 function renderNews() {
   const news = store.get("news", {}), lines = [];
   for (const s of SYMS) { const n = news[s]; document.querySelector(`#tabs a[data-v="${s}"]`).classList.toggle("news", !!n); if (!n) continue;
     const nm = COINS[s].name, add = t => lines.push(`<a href="#${s.toLowerCase()}">${t}</a>`), L = Object.entries(n.lv || {}).map(([name, v]) => ({ name, ...v }));
-    if (n.z) add(`<strong>${nm}</strong>: ${esc(n.z.from)} → <strong>${esc(n.z.to)}</strong> <span class="muted">(score ${n.z.fs} → ${n.z.ts})</span>${s === "BTC" && n.z.to === "Generational buy" && A.BTC.m && A.BTC.m.conf === false ? " · not yet confirmed on-chain: price is still above the realized price" : ""}`);
+    if (n.z) add(`<strong>${nm}</strong>: ${esc(n.z.from)} → <strong>${esc(n.z.to)}</strong>${zsc(n.z)}${s === "BTC" && n.z.to === "Generational buy" && A.BTC.m && A.BTC.m.conf === false ? " · not yet confirmed on-chain: price is still above the realized price" : ""}`);
     const txt = { hit: v => `<strong>${nm}</strong> reached the ${esc(v.name)} level at <span class="num">${usdFmt(v.usd)}</span>`, touch: v => `<strong>${nm}</strong> touched the ${esc(v.name)} level at <span class="num">${usdFmt(v.usd)}</span> and recovered`,
       back: v => `<strong>${nm}</strong> moved back above the ${esc(v.name)} level <span class="num">(${usdFmt(v.usd)})</span>` };
     // Bitcoin at or below its realized price is the on-chain confirmation of a cycle-bottom zone: it gets its own line
