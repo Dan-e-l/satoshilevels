@@ -1153,13 +1153,13 @@ function renderOverview() {
   let ws = 0, tw = 0; for (const s of have) { ws += A[s].m.score * BASE[s]; tw += BASE[s]; }
   if (tw) {
     const sc = ws / tw, z = zoneFor(sc);
-    $("ovZone").innerHTML = `<span>${z.name}</span><span class="sep"> · </span><span>${Math.round(sc)}/100</span>`; $("ovZone").style.color = `var(${z.c})`;
+    $("ovZone").innerHTML = `<span>${z.name}</span><span class="sep"> · </span><span>${Math.floor(sc)}/100</span>`; $("ovZone").style.color = `var(${z.c})`;
     $("ovPin").style.left = clamp(sc, 0, 100) + "%";
     const best = [...have].sort((x, y) => A[y].m.score - A[x].m.score)[0];
     $("ovText").textContent = have.length < 3 ? `Based on ${have.join(", ")} only; the rest didn't load.` : `Cheapest by its own history right now: ${COINS[best].name} (${Math.round(A[best].m.score)}).`;
   }
   $("ovLines").innerHTML = SYMS.map(s => { if (!ready(s)) return `<div class="ovl"><strong>${COINS[s].name}</strong><span class="muted">not loaded</span></div>`;
-    const a = A[s], z = zoneFor(a.m.score); return `<div class="ovl"><strong>${COINS[s].name}</strong><span class="num muted">${fmtCur(a.spot)}</span><span class="zn" style="color:var(${z.c})">${z.name}</span><span class="sc"><span class="num">${Math.round(a.m.score)}</span> · buy <span class="num">${multFor(s, z)}</span>${z.sell ? ` · sell <span class="num">${z.sell}</span>/mo` : ""}</span></div>`; }).join("");
+    const a = A[s], z = zoneFor(a.m.score); return `<div class="ovl"><strong>${COINS[s].name}</strong><span class="num muted">${fmtCur(a.spot)}</span><span class="zn" style="color:var(${z.c})">${z.name}</span><span class="sc"><span class="num">${Math.floor(a.m.score)}</span> · buy <span class="num">${multFor(s, z)}</span>${z.sell ? ` · sell <span class="num">${z.sell}</span>/mo` : ""}</span></div>`; }).join("");
 
   // cards
   $("ovCards").innerHTML = SYMS.map(s => { const c = COINS[s], a = A[s];
@@ -1168,10 +1168,10 @@ function renderOverview() {
     return `<a class="panel coin" href="#${s.toLowerCase()}" aria-label="Open ${c.name} details">
       <div class="hd"><span class="nm"><span class="g">${c.glyph}</span>${c.name}</span><span class="chg">${chgHTML(chg24(a))}</span></div>
       <div class="pxrow"><div class="px num">${fmtCur(a.spot)}</div><canvas data-spark="${s}"></canvas></div>
-      <div class="sc"><b style="color:var(${z.c})">${Math.round(a.m.score)}</b><span class="zn" style="color:var(${z.c})">${z.name}</span><span class="muted">buy ${multFor(s, z)}${z.sell ? ` · sell ${z.sell}/mo` : ""}</span></div>
+      <div class="sc"><b style="color:var(${z.c})">${Math.floor(a.m.score)}</b><span class="zn" style="color:var(${z.c})">${z.name}</span><span class="muted">buy ${multFor(s, z)}${z.sell ? ` · sell ${z.sell}/mo` : ""}</span></div>
       <div class="gauge mini ph-only"><div class="pin" style="left:${clamp(a.m.score, 0, 100)}%"></div></div>
       <div class="groups d-only" style="margin-top:0">${a.m.groups.filter(g => g.weight).map(g => { const zz = g.score == null ? null : zoneFor(g.score);
-        return `<div class="grp"><span>${g.name}</span><div class="bar"><i style="width:${g.score ?? 0}%;background:var(${zz ? zz.c : "--muted"})"></i></div><span class="num">${g.score == null ? "n/a" : Math.round(g.score)}</span></div>`; }).join("")}</div>
+        return `<div class="grp"><span>${g.name}</span><div class="bar"><i style="width:${g.score ?? 0}%;background:var(${zz ? zz.c : "--muted"})"></i></div><span class="num">${g.score == null ? "n/a" : Math.floor(g.score)}</span></div>`; }).join("")}</div>
       <div style="font-size:.85rem">${nl ? `Next buy level: <strong class="num">${fmtCur(nl.px)}</strong> <span class="num muted">(${((nl.px / a.spot - 1) * 100).toFixed(1)}%)</span> · ${lvName(nl.name)}` : "Price is below every level on the ladder."}</div>
       <div class="ft"><div class="conf">${c.conf}</div><div class="more">Open ${c.name} details →</div></div></a>`; }).join("");
   document.querySelectorAll("canvas[data-spark]").forEach(cv => spark(cv, A[cv.dataset.spark]));
@@ -1180,7 +1180,7 @@ function renderOverview() {
   const cell = (f) => SYMS.map(s => `<td class="r num">${ready(s) ? f(A[s], s) : "—"}</td>`).join("");
   const R = [
     ["Price", a => fmtCur(a.spot)], ["24 hours", a => chgHTML(chg24(a))],
-    ["Score", a => `<strong>${Math.round(a.m.score)}</strong>`], ["Zone", a => { const z = zoneFor(a.m.score); return `<span style="color:var(${z.c})">${z.name}</span>`; }],
+    ["Score", a => `<strong>${Math.floor(a.m.score)}</strong>`], ["Zone", a => { const z = zoneFor(a.m.score); return `<span style="color:var(${z.c})">${z.name}</span>`; }],
     ['<span class="lg">Suggested buy size</span><span class="sm">Buy size</span>', (a, s) => multFor(s, zoneFor(a.m.score))],
     ["Sell option", a => { const z = zoneFor(a.m.score); return z.sell ? z.sell + "/mo" : "—"; }],
     ['<span class="lg">Below all-time high</span><span class="sm">Below high</span>', a => "−" + a.m.k.dd.toFixed(0) + "%"],
@@ -1232,9 +1232,9 @@ function renderDetail(sym) {
   $("mult").textContent = multFor(sym, z); $("mult").style.setProperty("--zc", `var(${z.c})`);
   $("sellBox").hidden = !z.sell;
   if (z.sell) { $("sellPct").textContent = z.sell; $("sellPct").style.setProperty("--zc", `var(${z.c})`); }
-  $("score").textContent = Math.round(m.score);
+  $("score").textContent = Math.floor(m.score);
   $("groups").innerHTML = m.groups.filter(g => g.weight).map(g => { const zz = g.score == null ? null : zoneFor(g.score);
-    return `<div class="grp tap" data-k="grp:${g.key}" role="button" tabindex="0" aria-haspopup="dialog"><span>${g.name} <span class="muted">${Math.round(g.weight * 100)}%</span></span><div class="bar"><i style="width:${g.score ?? 0}%;background:var(${zz ? zz.c : "--muted"})"></i></div><span class="num">${g.score == null ? "n/a" : Math.round(g.score)}</span></div>`; }).join("");
+    return `<div class="grp tap" data-k="grp:${g.key}" role="button" tabindex="0" aria-haspopup="dialog"><span>${g.name} <span class="muted">${Math.round(g.weight * 100)}%</span></span><div class="bar"><i style="width:${g.score ?? 0}%;background:var(${zz ? zz.c : "--muted"})"></i></div><span class="num">${g.score == null ? "n/a" : Math.floor(g.score)}</span></div>`; }).join("");
 
   const rows = []; let nowPlaced = false; const nPassed = a.levels.filter(l => l.px >= p).length;
   if (nPassed) rows.push(`<tr class="pfold"><td colspan="4"><button type="button" id="pfoldBtn" aria-expanded="${!!G.showPassed}">${nPassed} level${nPassed > 1 ? "s" : ""} already passed · ${G.showPassed ? "hide" : "show"}</button></td></tr>`);
@@ -1253,7 +1253,7 @@ function renderDetail(sym) {
   $("signals").innerHTML = m.groups.map(g => { const gk = sym + ":" + g.key, gOpen = G.openGroups[gk] ?? !phone, gz = g.score == null ? null : zoneFor(g.score);
     return `<details class="sig-group" data-k="${gk}"${gOpen ? " open" : ""}>
       <summary class="gh"><span class="gt"><h3>${g.name} <span class="muted" style="font-weight:400">· ${g.weight ? Math.round(g.weight * 100) + "% of score" : "info only"}</span></h3><span class="label">${g.desc} · ${m.sig.filter(s => s.g === g.key).length} indicators</span></span>
-        <span class="gs">${g.weight ? `<span class="num" style="color:var(${gz ? gz.c : "--muted"})">${g.score == null ? "n/a" : Math.round(g.score)}</span>` : ""}<span class="chev" aria-hidden="true">▾</span></span></summary>
+        <span class="gs">${g.weight ? `<span class="num" style="color:var(${gz ? gz.c : "--muted"})">${g.score == null ? "n/a" : Math.floor(g.score)}</span>` : ""}<span class="chev" aria-hidden="true">▾</span></span></summary>
       <div class="signals">${m.sig.filter(s => s.g === g.key).map(s => {
         const sc = s.score == null ? null : Math.round(s.score), zz = sc == null ? null : zoneFor(sc);
         return `<div class="panel sig ${s.disp ? "" : "na"}" data-k="sig:${m.sig.indexOf(s)}" role="button" tabindex="0" aria-haspopup="dialog" aria-label="About ${esc(s.name)}"><div class="top"><span class="label">${esc(s.name)}</span><span class="label">${s.w ? "weight " + Math.round(s.w * 100) + "%" : "info only"}</span></div>
@@ -1320,7 +1320,7 @@ function checkNews() {
   const seen = store.get("seen", {}), news = store.get("news", {});
   for (const s of SYMS) { const a = A[s]; if (!ready(s) || a.saved) continue;
     const fx = G.cur === "USD" ? 1 : a.m.fx; if (!fx) continue;
-    const z = zoneFor(a.m.score).name, sc = Math.round(a.m.score), last = a.daily[a.daily.length - 1], p = seen[s], n = news[s] || { lv: {} };
+    const z = zoneFor(a.m.score).name, sc = Math.floor(a.m.score), last = a.daily[a.daily.length - 1], p = seen[s], n = news[s] || { lv: {} };
     const lv = {}; for (const l of a.levels) lv[l.name] = l.px >= a.spot ? 1 : 0;          // 1 = the price is at or below this level
     if (p) {
       if (p.z !== z) { if (!n.z) n.z = { from: p.z, fs: p.sc }; n.z.to = z; n.z.ts = sc; if (n.z.from === z) delete n.z; }
@@ -1519,7 +1519,7 @@ function drawChart() {
     const capI = zs.map((z, i) => z && z.cap ? i : -1).filter(i => i >= 0), mY = i => { const q = new Date(d[i].t); return MON[q.getUTCMonth()] + " " + q.getUTCFullYear(); };
     const zCap = capI.length ? (mY(capI[0]) === mY(last(capI)) ? mY(capI[0]) : mY(capI[0]).replace(/ (\d+)$/, (m, yr) => last(capI) && new Date(d[last(capI)].t).getUTCFullYear() == yr ? "" : m) + "–" + mY(last(capI))) : null;
     const t = last(zs); $("zNote").textContent = "The bands use only the price-based signals, because the free sources have no history for the on-chain and sentiment data." +
-      (t ? ` Price-only score today: ${Math.round(t.sc)}. Full score: ${Math.round(a.m.score)}.` : "") +
+      (t ? ` Price-only score today: ${Math.floor(t.sc)}. Full score: ${Math.floor(a.m.score)}.` : "") +
       (zFrom ? ` The bands start in ${MON[new Date(zFrom).getUTCMonth()]} ${new Date(zFrom).getUTCFullYear()}, once ${COINS[sym].name} has ${zYrs} years of price history.` : "") +
       (sym !== "BTC" ? " The Gen. buy and Expensive zones are shown as bands only: Bitcoin's own score is part of the score, so at times no price could reach them." :
         zGap ? " Where a boundary line is missing, no price could reach that zone at the time." : "") +
@@ -1543,7 +1543,7 @@ const readout = e => {
   const i = Math.round((e.clientX - r.left - g.pad.l) / (g.W - g.pad.l - g.pad.r) * (g.d.length - 1));
   if (i < 0 || i >= g.d.length) return;
   const z = g.zs && g.zs[i], dt = new Date(g.d[i].t).toISOString().slice(0, 10);
-  if (g.zs) { $("readout").textContent = `${dt}  ${fmtCur(g.closes[i])}` + (z ? `  ${zoneFor(z.sc).name} (${Math.round(z.sc)})` : ""); return; }
+  if (g.zs) { $("readout").textContent = `${dt}  ${fmtCur(g.closes[i])}` + (z ? `  ${zoneFor(z.sc).name} (${Math.floor(z.sc)})` : ""); return; }
   $("readout").textContent = `${dt}  price ${fmtCur(g.closes[i])}  200D ${fmtCur(g.ma200[i])}  2Y ${fmtCur(g.m2y[i])}  200W ${fmtCur(g.m200w[i])}`;
 };
 $("chart").addEventListener("pointermove", readout); $("chart").addEventListener("pointerdown", readout);
