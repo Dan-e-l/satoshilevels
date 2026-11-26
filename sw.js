@@ -1,8 +1,10 @@
 // Keeps the app's own files on the phone so it opens offline.
 // The page is always fetched fresh when online (so updates arrive at once); the saved copy is used only without a connection.
 // Price and data requests go to other sites and are not touched here; the page keeps its own saved copy of those.
-const CACHE = "satoshi-levels-v43";
-const FILES = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png"];
+const CACHE = "satoshi-levels-v44";
+const FILES = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
+  "fonts/sora-latin-500-normal.woff2", "fonts/sora-latin-600-normal.woff2", "fonts/sora-latin-700-normal.woff2", "fonts/ibm-plex-sans-latin-400-normal.woff2",
+  "fonts/ibm-plex-sans-latin-500-normal.woff2", "fonts/ibm-plex-sans-latin-600-normal.woff2", "fonts/ibm-plex-mono-latin-400-normal.woff2", "fonts/ibm-plex-mono-latin-500-normal.woff2"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", e => {
