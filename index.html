@@ -39,8 +39,6 @@
 
 * { box-sizing: border-box }
 html, body { margin: 0 }
-/* no rubber-band bounce: on iPhones it dragged the bottom tab bar along; pull-to-refresh reads the finger itself, so it still works */
-html, body { overscroll-behavior-y: none }
 body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body);
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-top: calc(24px + env(safe-area-inset-top, 0px)); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)) }
 .wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 28px }
@@ -244,6 +242,9 @@ tr.pfold { display: none }
   #tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
     background: color-mix(in srgb, var(--panel) 94%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-top: 1px solid var(--line);
     padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)) }
+  /* iPhone home-screen app: after coming back from another app, iOS 26 can keep a too-short window, and "bottom: 0" then lands
+     mid-screen. There the bar hangs from the top instead, at the tallest height this window has had (set by the script) */
+  html.pin-tabs #tabs { bottom: auto; top: var(--app-h); transform: translateY(-100%) }
   #tabs a { display: grid; justify-items: center; align-content: center; gap: 2px; min-height: 50px; padding: 4px 0; font-size: .72rem; border: 0; border-radius: 10px }
   #tabs a .ti { margin: 0; font-size: 1.2rem; line-height: 1; opacity: 1 }
   #tabs a.on { background: var(--accent-soft); color: var(--accent); border: 0 }
@@ -1698,6 +1699,14 @@ $("theme").addEventListener("click", () => {
 });
 const th = store.get("theme", null); if (th) document.documentElement.dataset.theme = th;
 const mq = matchMedia("(prefers-color-scheme: light)"); if (mq.addEventListener) mq.addEventListener("change", redraw);
+// iPhone home-screen app only (see the html.pin-tabs CSS rule). Nothing in the app opens the keyboard, so for a given width the
+// window only gets shorter through that iOS bug: the tallest height seen for the width is the real one.
+if (navigator.standalone === true) {
+  const tall = {}, pin = () => { const w = innerWidth; tall[w] = Math.max(tall[w] || 0, innerHeight);
+    document.documentElement.style.setProperty("--app-h", tall[w] + "px"); };
+  pin(); document.documentElement.classList.add("pin-tabs");
+  window.addEventListener("resize", pin); window.addEventListener("pageshow", pin); document.addEventListener("visibilitychange", pin);
+}
 let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(redraw, 120); });
 // Draw whatever is saved for the current currency, then fetch live data.
 function startView() { try { if (hydrate()) computeAll(); } catch { for (const s of SYMS) A[s] = {}; } render(); }
