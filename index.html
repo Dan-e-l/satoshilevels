@@ -139,6 +139,14 @@ canvas { width: 100%; height: 100%; display: block }
 .bar i { display: block; height: 100%; border-radius: 3px }
 .sig p { margin: 0; font-size: .82rem }
 .sig .read { color: var(--fg) }
+/* info-only signals: crossed-circle mark, listed after a "Not in the score" divider; Pi Cycle (a cap) gets a "score cap" chip */
+.mk { width: 14px; height: 14px; flex: none; margin-right: 5px; fill: none; stroke: var(--muted); stroke-width: 1.6 }
+.sig .chip { padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; font-size: 11px; line-height: 1.4; white-space: nowrap }
+.sig-sep { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; margin-top: 4px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em }
+.sig-sep::after { content: ""; flex: 1; border-top: 1px solid var(--line) }
+.ilist li.info { list-style: none; margin-left: -18px }
+.ilist .mk { vertical-align: -2px }
+.ilist li.sep { list-style: none; margin: 6px 0 0 -18px; color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em }
 
 footer { font-size: .8rem; color: var(--accent); display: grid; gap: 8px }
 footer p { margin: 0; max-width: 90ch }
@@ -346,13 +354,16 @@ a.coin:hover { border-color: var(--accent) }
   table.stack.showp tr.passed { display: grid }
   table.stack tr.pfold { display: block; padding: 0 }
   table.stack tr.pfold td { display: block }
+  .pfold .acc { color: var(--accent) }
   .pfold button { width: 100%; height: 44px; padding: 0; border: 0; background: none; color: var(--muted); font-size: 14px; text-align: left }
   /* signals: two compact tiles per line; tap a tile for today's reading */
   .signals { gap: 10px }
   .sig { padding: 12px; align-content: space-between }
   .sig .top { align-items: flex-start }
   .sig .top .label:first-child { font-size: 14px; display: block; line-height: 1.3 }
-  .sig .top .label + .label, .sig .read { display: none }
+  .sig .top .stag .tx, .sig .read { display: none }
+  .sig:not(.info):not(.cap) .top .stag { display: none }
+  .sig .top .stag .mk { margin: 2px 0 0 }
 }
 /* 375px-wide iPhones (SE, mini, X, 11 Pro): keep the comparison table inside the screen */
 @media (max-width: 400px) {
@@ -886,7 +897,7 @@ function computeBTC(a) {
   add({ g: "val", name: "Bull market support band", w: .02, disp: rB && fmtR(rB), score: pw(rB, PB.btc.bmsb),
     note: rB == null ? "Needs 21 weeks of data." : `Band ${fmtCur(bLo)}–${fmtCur(bHi)}. ` + (rB < 1 ? "Below the band: a dip-buy zone in bull markets, resistance in bear markets." : rB < 1.15 ? "Sitting on the band: a common bull-market bounce zone." : "Well above the band.") });
   const ma111 = sma(dc, 111), ma350 = sma(dc, 350), pi = ma111 && ma350 ? ma111 / (2 * ma350) : null;
-  add({ g: "val", name: "Pi Cycle Top", w: 0, disp: pi && pi.toFixed(2), score: pw(pi, [[0.6, 65], [0.8, 45], [0.9, 25], [1, 0]]),
+  add({ g: "val", name: "Pi Cycle Top", w: 0, cap: true, disp: pi && pi.toFixed(2), score: pw(pi, [[0.6, 65], [0.8, 45], [0.9, 25], [1, 0]]),
     note: pi == null ? "Needs 350 days of data." : (pi >= 1 ? "Crossed: this has marked past cycle tops. Stop buying." : pi >= 0.9 ? "Close to crossing: top risk is rising." : "Far from a cycle-top signal.") + " Not weighted; at 0.95 or above it caps the total score at 20." });
   // 200-week MA slope: growth of the 200-week MA over the past 52 weeks, ranked against the last 4 years
   const maW = smaSeries(wc, 200), sl = [];
@@ -1052,6 +1063,13 @@ function finish(sig, groupDefs, cap) {
     return { ...g, score: y ? x / y : null, weight: tot }; }).filter(g => sig.some(s => s.g === g.key));
   return { score, groups };
 }
+// One group's signals in display order, shared by the signal tiles and the group's list in the score breakdown:
+// weighted ones (heaviest first), then the Pi Cycle cap (no weight, but it can cap the score), then info only
+const sigRank = s => s.w ? 0 : s.cap ? 1 : 2;
+const groupSigs = (m, gk) => m.sig.filter(s => s.g === gk).sort((p, q) => sigRank(p) - sigRank(q) || q.w - p.w);
+const sigTag = s => s.w ? Math.round(s.w * 100) + "%" : s.cap ? "score cap" : "info only";
+const INFO_MK = `<svg class="mk" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M3.8 12.2 12.2 3.8"/></svg>`;
+const SEP = "Not in the score";
 function computeAlt(sym) {
   const a = A[sym], p = a.spot, E = G.ext, isE = sym === "ETH", name = COINS[sym].name, fx = E.fx || null;
   const dc = [...a.daily.slice(0, -1).map(x => x.c), p], wc = [...a.weekly.slice(0, -1).map(x => x.c), p];
@@ -1255,7 +1273,7 @@ function renderDetail(sym) {
     return `<div class="grp tap" data-k="grp:${g.key}" role="button" tabindex="0" aria-haspopup="dialog"><span>${g.name} <span class="muted">${Math.round(g.weight * 100)}%</span></span><div class="bar"><i style="width:${g.score ?? 0}%;background:var(${zz ? zz.c : "--muted"})"></i></div><span class="num">${g.score == null ? "n/a" : Math.floor(g.score)}</span></div>`; }).join("");
 
   const rows = []; let nowPlaced = false; const nPassed = a.levels.filter(l => l.px >= p).length;
-  if (nPassed) rows.push(`<tr class="pfold"><td colspan="4"><button type="button" id="pfoldBtn" aria-expanded="${!!G.showPassed}">${nPassed} level${nPassed > 1 ? "s" : ""} already passed · ${G.showPassed ? "hide" : "show"}</button></td></tr>`);
+  if (nPassed) rows.push(`<tr class="pfold"><td colspan="4"><button type="button" id="pfoldBtn" aria-expanded="${!!G.showPassed}">${nPassed} level${nPassed > 1 ? "s" : ""} already passed · <span class="acc">${G.showPassed ? "hide" : "show"}</span></button></td></tr>`);
   const nowRow = `<tr class="now"><td>▶ Price now</td><td class="r num">${fmtCur(p)}</td><td class="r num">—</td><td></td></tr>`;
   for (const l of a.levels) {
     if (!nowPlaced && l.px < p) { rows.push(nowRow); nowPlaced = true; }
@@ -1269,12 +1287,16 @@ function renderDetail(sym) {
 
   const phone = isPhone();
   $("signals").innerHTML = m.groups.map(g => { const gk = sym + ":" + g.key, gOpen = G.openGroups[gk] ?? !phone, gz = g.score == null ? null : zoneFor(g.score);
+    const gs = groupSigs(m, g.key), nInfo = gs.filter(s => sigRank(s) === 2).length;
     return `<details class="sig-group" data-k="${gk}"${gOpen ? " open" : ""}>
-      <summary class="gh"><span class="gt"><h3>${g.name} <span class="muted" style="font-weight:400">· ${g.weight ? Math.round(g.weight * 100) + "% of score" : "info only"}</span></h3><span class="label">${g.desc} · ${m.sig.filter(s => s.g === g.key).length} indicators</span></span>
+      <summary class="gh"><span class="gt"><h3>${g.name} <span class="muted" style="font-weight:400">· ${g.weight ? Math.round(g.weight * 100) + "% of score" : "info only"}</span></h3><span class="label">${g.desc} · ${nInfo && nInfo < gs.length ? `${gs.length - nInfo} in score · ${nInfo} info only` : gs.length + " indicators"}</span></span>
         <span class="gs">${g.weight ? `<span class="num" style="color:var(${gz ? gz.c : "--muted"})">${g.score == null ? "n/a" : Math.floor(g.score)}</span>` : ""}<span class="chev" aria-hidden="true">▾</span></span></summary>
-      <div class="signals">${m.sig.filter(s => s.g === g.key).map(s => {
-        const sc = s.score == null ? null : Math.round(s.score), zz = sc == null ? null : zoneFor(sc);
-        return `<div class="panel sig ${s.disp ? "" : "na"}" data-k="sig:${m.sig.indexOf(s)}" role="button" tabindex="0" aria-haspopup="dialog" aria-label="About ${esc(s.name)}"><div class="top"><span class="label">${esc(s.name)}</span><span class="label">${s.w ? "weight " + Math.round(s.w * 100) + "%" : "info only"}</span></div>
+      <div class="signals">${gs.map((s, n) => {
+        // info-only tiles: a small crossed-circle mark (also on the phone, where the tag text is hidden)
+        const sc = s.score == null ? null : Math.round(s.score), zz = sc == null ? null : zoneFor(sc), rk = sigRank(s), info = rk === 2;
+        const tag = s.w ? "weight " + sigTag(s) : s.cap ? `<span class="chip">${sigTag(s)}</span>` : `${INFO_MK}<span class="tx">${sigTag(s)}</span>`;
+        return (info && n && sigRank(gs[n - 1]) < 2 ? `<div class="sig-sep">${SEP}</div>` : "") +
+          `<div class="panel sig${s.disp ? "" : " na"}${info ? " info" : s.cap ? " cap" : ""}" data-k="sig:${m.sig.indexOf(s)}" role="button" tabindex="0" aria-haspopup="dialog" aria-label="About ${esc(s.name)}${s.w ? "" : ", " + sigTag(s)}"><div class="top"><span class="label">${esc(s.name)}</span><span class="label stag">${tag}</span></div>
           <div class="val">${s.disp ? esc(s.disp) : "n/a"}</div>
           <div class="bar"><i style="width:${sc ?? 0}%;background:var(${zz ? zz.c : "--muted"})"></i></div>
           <p class="read">${esc(s.note)}</p></div>`; }).join("")}</div></details>`; }).join("");
@@ -1306,10 +1328,12 @@ function info(k) {
     <p class="muted">Selling is an option, not a signal: the model was built to find good buys, and the last top (October 2025) only reached Expensive. Fees and taxes are not included. Solana could not be backtested.</p>` };
   if (!m) return null;
   if (kind === "grp") { const g = m.groups.find(x => x.key === id); if (!g) return null;
-    const list = m.sig.filter(x => x.g === id).map(x => `<li>${esc(x.name)} <span class="muted">· ${x.w ? Math.round(x.w * 100) + "%" : "info only"}</span></li>`).join("");
+    const gs = groupSigs(m, id), list = gs.map((x, n) => { const info = sigRank(x) === 2;
+      return (info && n && sigRank(gs[n - 1]) < 2 ? `<li class="sep">${SEP}</li>` : "") +
+        `<li${info ? ' class="info"' : ""}>${info ? INFO_MK : ""}${esc(x.name)} <span class="muted">· ${sigTag(x)}</span></li>`; }).join("");
     return { title: g.name, html: `<p>${esc(g.desc)}. ${g.weight ? `This group makes up ${Math.round(g.weight * 100)}% of ${COINS[sym].name}'s score.` : "Shown for information; not part of the score."}</p><ul class="ilist">${list}</ul>` }; }
   if (kind === "sig") { const x = m.sig[+id]; if (!x) return null;
-    return { title: x.name, html: `${x.disp ? `<p><strong>Now: ${esc(x.disp)}.</strong> ${esc(x.note)}</p>` : ""}<p>${esc(x.what)}</p><p class="muted">${x.w ? `Weight in the score: ${Math.round(x.w * 100)}%.` : "Shown for information; not part of the score."}</p>` }; }
+    return { title: x.name, html: `${x.disp ? `<p><strong>Now: ${esc(x.disp)}.</strong> ${esc(x.note)}</p>` : ""}<p>${esc(x.what)}</p><p class="muted">${x.w ? `Weight in the score: ${Math.round(x.w * 100)}%.` : x.cap ? "Not weighted, but it can cap the score: see above." : "Shown for information; not part of the score."}</p>` }; }
   if (kind === "lvl") { const l = a.levels[+id]; if (!l) return null; const d = (l.px / a.spot - 1) * 100;
     return { title: l.name, html: `<p>${esc(l.desc)}.</p><p class="muted">At ${fmtCur(l.px)}, ${d >= 0 ? `${d.toFixed(1)}% above today's price: already passed.` : `${(-d).toFixed(1)}% below today's price.`} Strength ${STRENGTH[l.strength]}: how reliably price has held at this kind of level in past cycles.</p>` }; }
   return null;
